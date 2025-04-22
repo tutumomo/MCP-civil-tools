@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+當使用者告知更新 github repo 時，執行以下命令(記得若是windows作業系統，不支援 && 指令):
+git add .
+git commit -m "更新"
+git push
+

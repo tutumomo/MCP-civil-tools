@@ -96,6 +96,14 @@ C:\TOMO\MCP-civil-tools\.venv\Scripts\python.exe C:\TOMO\MCP-civil-tools\src\mcp
 
 ---
 
+## 主要功能更新
+
+- **所有查表型工具皆支援「支援清單查詢」API**：
+  - 例如：`list_supported_materials`（常用材料）、`list_supported_manning_materials`（曼寧係數材料）、`list_supported_max_velocity_materials`（最大流速材料）、`list_supported_regions`（地區/IDF/年雨量）、`list_supported_soil_types`（土壤類型）、`list_supported_land_uses`（土地利用）、`list_supported_practices`（水保措施）、`list_supported_runoff_land_uses`（逕流係數土地利用）、`list_supported_slope_protection_methods`（坡面保護工法）、`list_supported_soil_k_types`（滲透係數土壤）、`list_supported_idf_locations`（IDF曲線地點）等。
+  - 查詢時若輸入錯誤或查無資料，會自動提示所有可查詢的支援項目，提升使用體驗。
+
+---
+
 ## 個別工具使用範例
 
 ### 經緯度轉 UTM
@@ -271,6 +279,32 @@ C:\TOMO\MCP-civil-tools\.venv\Scripts\python.exe C:\TOMO\MCP-civil-tools\src\mcp
 回傳：地點：台中，重現期：10年，歷時：60分鐘，強度：100.0 mm/hr
 預設強度100mm/hr，僅為範例。
 ```
+
+### 查詢支援清單
+- 你可以直接查詢有哪些可用的材料、地區、工法等：
+
+```
+查詢：有哪些常用材料？
+回傳：['一般黏土', '砂土', '礫石', '混凝土', ...]
+
+查詢：有哪些曼寧係數材料？
+回傳：['純細砂', '混凝土', '全面密草生', ...]
+
+查詢：有哪些坡面保護工法？
+回傳：['草皮或直接播種', '噴播草皮+格框/土工網', ...]
+
+查詢：有哪些IDF地點？
+回傳：['台北市', '新北市', '台中市']
+```
+
+### 查詢失敗時自動提示
+- 若查詢時輸入錯誤，會自動回傳所有支援查詢的項目：
+
+```
+輸入：查詢不存在的材料名稱
+回傳：查無此材料，支援查詢的材料有：一般黏土, 砂土, 礫石, 混凝土, ...
+```
+
 ## 使用範例
 - 有一集水區面積約5ha，農業區，新北市，重現期50年，降雨延時60min，該集水區最大逕流量?
 - 依據這個逕流量，設計一條寬50cm，深70cm的混凝土溝，設計坡度容許範圍? 
