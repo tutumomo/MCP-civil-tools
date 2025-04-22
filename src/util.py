@@ -96,7 +96,7 @@ def get_manning_materials_list():
     """
     return list(MANNING_N_TABLE.keys())
 
-# 最大容許流速表（依據附件 ALL.md）
+# 最大容許流速表（依據附件 ALL.md 與規範）
 MAX_VELOCITY_TABLE = {
     "純細砂": (0.23, 0.30),
     "不緻密之細砂": (0.30, 0.46),
