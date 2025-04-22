@@ -322,7 +322,37 @@ def get_runoff_coeff(land_use, runoff_coeff=None):
     else:
         return 0.5, "預設值"
 
-def get_rainfall_intensity(region=None, rainfall_intensity=None, return_period=None, duration=None):
+def calc_idf_coeffs(P):
+    """
+    依據規範公式，計算A、B、C、G、H係數
+    """
+    A = (P / (189.96 + 0.31 * P)) ** 2
+    B = 55
+    C = (P / (381.71 + 1.45 * P)) ** 2
+    G = (P / (42.89 + 1.33 * P)) ** 2
+    H = (P / (65.33 + 1.836 * P)) ** 2
+    return A, B, C, G, H
+
+def calc_rainfall_intensity_by_spec(P, T, t):
+    """
+    依據規範公式，計算降雨強度I值
+    P: 年平均降雨量(mm)
+    T: 重現期(年)
+    t: 集流時間/降雨延時(分鐘)
+    """
+    import math
+    A, B, C, G, H = calc_idf_coeffs(P)
+    I = (G + H * math.log(T)) ** (A / ((t + B) ** C))
+    return I, {'A': A, 'B': B, 'C': C, 'G': G, 'H': H}
+
+def get_rainfall_intensity(region=None, rainfall_intensity=None, return_period=None, duration=None, P=None):
+    """
+    若有P值，優先依規範公式推估I值，否則查表或用經驗公式。
+    """
+    if P is not None and return_period is not None and duration is not None:
+        I, coeffs = calc_rainfall_intensity_by_spec(P, return_period, duration)
+        src = f"依據規範公式(P={P}, T={return_period}, t={duration})，A={coeffs['A']:.3f},B={coeffs['B']},C={coeffs['C']:.3f},G={coeffs['G']:.3f},H={coeffs['H']:.3f}"
+        return I, src
     if region and region in RAINFALL_INTENSITY_TABLE:
         return RAINFALL_INTENSITY_TABLE[region], f"依據地區查表({region})"
     elif rainfall_intensity is not None:
@@ -330,14 +360,14 @@ def get_rainfall_intensity(region=None, rainfall_intensity=None, return_period=N
     else:
         return 100, "預設值"
 
-def catchment_peak_runoff(area, rainfall_intensity=None, runoff_coeff=None, land_use=None, region=None, return_period=None, duration=None, method="Rational"):
+def catchment_peak_runoff(area, rainfall_intensity=None, runoff_coeff=None, land_use=None, region=None, return_period=None, duration=None, method="Rational", P=None):
     """
-    集水區最大逕流量計算（Rational公式，支援土地利用、地區查表）。
+    集水區最大逕流量計算（Rational公式，支援土地利用、地區查表，並可依P自動推估I值）。
     """
     # 1. 逕流係數 C
     C, C_src = get_runoff_coeff(land_use, runoff_coeff)
     # 2. 降雨強度 I
-    I, I_src = get_rainfall_intensity(region, rainfall_intensity, return_period, duration)
+    I, I_src = get_rainfall_intensity(region, rainfall_intensity, return_period, duration, P)
     # 3. 面積 A
     A = area  # ha
     # 4. Rational 公式 Q = C * I * A / 360
@@ -345,7 +375,7 @@ def catchment_peak_runoff(area, rainfall_intensity=None, runoff_coeff=None, land
     msg = (
         f"Rational公式：Q = C * I * A / 360\n"
         f"C(逕流係數)={C:.2f}（{C_src}），I(降雨強度)={I:.1f}mm/hr（{I_src}），A(面積)={A:.2f}ha\n"
-        f"依據《水土保持技術規範》與常用設計手冊，參數可依土地利用、地區、重現期、歷時調整。"
+        f"依據《水土保持技術規範》第17條與附件公式，參數可依土地利用、地區、重現期、歷時、年雨量調整。"
     )
     return {
         'peak_runoff': Q,

@@ -1,5 +1,10 @@
 ---
 description: 
+globs: 
+alwaysApply: false
+---
+---
+description: 
 globs: .py
 alwaysApply: false
 ---

@@ -1,5 +1,10 @@
 ---
 description: 
+globs: 
+alwaysApply: false
+---
+---
+description: 
 globs: .py
 alwaysApply: false
 ---
@@ -18,7 +23,7 @@ alwaysApply: false
 
 ### 將 MCP 加入您的 Python 專案
 
-我們建議使用 [uv](https://docs.astral.sh/uv/) 來管理您的 Python 專案。
+我們建議使用 [uv](mdc:https:/docs.astral.sh/uv) 來管理您的 Python 專案。
 
 如果您尚未建立 uv 管理的專案，請建立一個：
 
@@ -72,7 +77,7 @@ def get_greeting(name: str) -> str:
     return f"Hello, {name}!"
 ```
 
-您可以將此伺服器安裝在 [Claude Desktop](https://claude.ai/download) 中，並透過執行以下指令立即與其互動：
+您可以將此伺服器安裝在 [Claude Desktop](mdc:https:/claude.ai/download) 中，並透過執行以下指令立即與其互動：
 ```bash
 mcp install server.py
 ```
@@ -84,7 +89,7 @@ mcp dev server.py
 
 ## 什麼是 MCP？
 
-[模型上下文協定 (MCP)](https://modelcontextprotocol.io) 讓您可以建構伺服器，以安全、標準化的方式向 LLM 應用程式公開資料和功能。可以把它想像成一個 Web API，但專門為 LLM 互動而設計。MCP 伺服器可以：
+[模型上下文協定 (MCP)](mdc:https:/modelcontextprotocol.io) 讓您可以建構伺服器，以安全、標準化的方式向 LLM 應用程式公開資料和功能。可以把它想像成一個 Web API，但專門為 LLM 互動而設計。MCP 伺服器可以：
 
 - 透過 **資源 (Resources)** 公開資料（可以把它們想像成類似 GET 端點；用於將資訊載入 LLM 的上下文）
 - 透過 **工具 (Tools)** 提供功能（類似 POST 端點；用於執行程式碼或產生副作用）
@@ -328,7 +333,7 @@ app = Starlette(
 app.router.routes.append(Host('mcp.acme.corp', app=mcp.sse_app()))
 ```
 
-有關在 Starlette 中掛載應用程式的更多資訊，請參閱 [Starlette 文件](https://www.starlette.io/routing/#submounting-routes)。
+有關在 Starlette 中掛載應用程式的更多資訊，請參閱 [Starlette 文件](mdc:https:/www.starlette.io/routing/#submounting-routes)。
 
 ## 範例
 
@@ -590,6 +595,6 @@ MCP 伺服器在初始化期間宣告能力：
 
 ## 文件
 
-- [模型上下文協定文件](https://modelcontextprotocol.io)
-- [模型上下文協定規範](https://spec.modelcontextprotocol.io)
-- [官方支援的伺服器](https://github.com/modelcontextprotocol/servers)
+- [模型上下文協定文件](mdc:https:/modelcontextprotocol.io)
+- [模型上下文協定規範](mdc:https:/spec.modelcontextprotocol.io)
+- [官方支援的伺服器](mdc:https:/github.com/modelcontextprotocol/servers)

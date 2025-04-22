@@ -86,7 +86,7 @@ c:\Users\tutumomo\Documents\MCP\MCP-civil-tools\.venv\Scripts\python.exe c:\User
 
 ---
 
-## API 使用範例
+## 個別工具使用範例
 
 ### 經緯度轉 UTM
 - 輸入：緯度、經度（可選 datum，預設 TWD97）
@@ -261,6 +261,10 @@ c:\Users\tutumomo\Documents\MCP\MCP-civil-tools\.venv\Scripts\python.exe c:\User
 回傳：地點：台中，重現期：10年，歷時：60分鐘，強度：100.0 mm/hr
 預設強度100mm/hr，僅為範例。
 ```
+## 使用範例
+- 有一集水區面積約5ha，農業區，新北市，重現期50年，降雨延時60min，該集水區最大逕流量?
+- 依據這個逕流量，設計一條寬50cm，深70cm的混凝土溝，設計坡度容許範圍? 
+- 依據這個逕流量，設計一條寬50cm，溝深60cm的混凝土溝，坡度2.5%，檢核該設計是否OK，並出具一份完整的檢核報告書。 
 
 ---
 

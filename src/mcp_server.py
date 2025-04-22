@@ -147,10 +147,20 @@ def calc_catchment_runoff(
     region: str = None,
     return_period: float = None,
     duration: float = None,
-    method: str = "Rational"
+    method: str = "Rational",
+    P: float = None
 ) -> dict:
     """
-    集水區最大逕流量計算（支援土地利用、地區、重現期、歷時查表）。
+    集水區最大逕流量計算（支援土地利用、地區、重現期、歷時查表，及年平均降雨量P自動推估I值）。
+    - area: 集水區面積(ha)
+    - rainfall_intensity: 降雨強度(mm/hr，可選)
+    - runoff_coeff: 逕流係數(可選)
+    - land_use: 土地利用型態(可選)
+    - region: 地區名稱(可選)
+    - return_period: 重現期(年，可選)
+    - duration: 集流時間/降雨延時(分鐘，可選)
+    - method: 計算方法(預設Rational)
+    - P: 年平均降雨量(mm，可選，若有則依規範公式自動推估I值)
     """
     result = catchment_peak_runoff(
         area,
@@ -160,7 +170,8 @@ def calc_catchment_runoff(
         region=region,
         return_period=return_period,
         duration=duration,
-        method=method
+        method=method,
+        P=P
     )
     return result
 
