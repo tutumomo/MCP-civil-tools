@@ -138,17 +138,43 @@ def get_max_velocity(material: str):
     return MAX_VELOCITY_TABLE.get(material)
 
 # --- 土壓力係數計算 ---
-def active_earth_pressure_coefficient(phi_deg: float) -> float:
+def active_earth_pressure_coefficient(phi_deg: float):
     """主動土壓力係數 Ka (庫倫公式)"""
     import math
     phi = math.radians(phi_deg)
-    return round((1 - math.sin(phi)) / (1 + math.sin(phi)), 4)
+    ka = round((1 - math.sin(phi)) / (1 + math.sin(phi)), 4)
+    formula = "Ka = (1 - sinφ) / (1 + sinφ)"
+    calculation_steps = f"Ka = (1 - sin{phi_deg:.2f}°) / (1 + sin{phi_deg:.2f}°) = {ka}"
+    regulation = "依據《水土保持技術規範》第117、118、164條"
+    explanation = "主動土壓力常用庫倫公式計算，設計時應依規範選用正確內摩擦角。"
+    input_params = {'phi': phi_deg}
+    return {
+        'Ka': ka,
+        'regulation': regulation,
+        'explanation': explanation,
+        'input_params': input_params,
+        'formula': formula,
+        'calculation_steps': calculation_steps
+    }
 
-def passive_earth_pressure_coefficient(phi_deg: float) -> float:
+def passive_earth_pressure_coefficient(phi_deg: float):
     """被動土壓力係數 Kp (庫倫公式)"""
     import math
     phi = math.radians(phi_deg)
-    return round((1 + math.sin(phi)) / (1 - math.sin(phi)), 4)
+    kp = round((1 + math.sin(phi)) / (1 - math.sin(phi)), 4)
+    formula = "Kp = (1 + sinφ) / (1 - sinφ)"
+    calculation_steps = f"Kp = (1 + sin{phi_deg:.2f}°) / (1 - sin{phi_deg:.2f}°) = {kp}"
+    regulation = "依據《水土保持技術規範》第117、118、164條"
+    explanation = "被動土壓力常用庫倫公式計算，設計時應依規範選用正確內摩擦角。"
+    input_params = {'phi': phi_deg}
+    return {
+        'Kp': kp,
+        'regulation': regulation,
+        'explanation': explanation,
+        'input_params': input_params,
+        'formula': formula,
+        'calculation_steps': calculation_steps
+    }
 
 # --- 排水溝流速計算（曼寧公式，含流速檢核）---
 def channel_flow_velocity(n: float, r: float, s: float, material: str = None):
@@ -165,7 +191,25 @@ def channel_flow_velocity(n: float, r: float, s: float, material: str = None):
             v_min, v_max = v_range
             if v > v_max:
                 warning = f"警告：計算流速 v = {v:.4f} m/s 已超過『{material}』最大容許流速 {v_max} m/s！"
-    return v, warning
+    formula = "v = (1/n) × R^(2/3) × S^(1/2)"
+    calculation_steps = f"v = (1/{n:.3f}) × {r:.3f}^(2/3) × {s:.4f}^(1/2) = {v:.4f} m/s"
+    regulation = "依據《水土保持技術規範》第19、85條及附件曼寧公式、最大容許流速表"
+    explanation = "明渠流速常用曼寧公式計算，並應檢核材料最大容許流速以符合法規。"
+    input_params = {
+        'n': n,
+        'r': r,
+        's': s,
+        'material': material
+    }
+    return {
+        'velocity': v,
+        'warning': warning,
+        'regulation': regulation,
+        'explanation': explanation,
+        'input_params': input_params,
+        'formula': formula,
+        'calculation_steps': calculation_steps
+    }
 
 def channel_flow_discharge(v: float, a: float) -> float:
     """流量 Q = v * A"""
@@ -207,7 +251,22 @@ def slope_stability_safety_factor(slope: float, unit_weight: float = None, frict
     denominator = γ_eff * h * math.sin(beta)
     FS = numerator / denominator if denominator > 0 else float('inf')
     is_pass = FS >= 1.5
-    # 4. 說明
+    formula = "FS = (c + γh cosβ tanφ) / (γh sinβ)"
+    calculation_steps = (
+        f"FS = ({c:.2f} + ({γ_eff:.2f} × {h:.2f} × cos{math.degrees(beta):.2f}° × tan{math.degrees(φ):.2f}°)) / "
+        f"({γ_eff:.2f} × {h:.2f} × sin{math.degrees(beta):.2f}°) = {FS:.2f}"
+    )
+    regulation = "依據《水土保持技術規範》第152、154條及附件最小安全係數表"
+    explanation = "坡地穩定設計須符合規範建議安全係數，常用簡化法計算平面滑動安全係數。"
+    input_params = {
+        'slope': slope,
+        'unit_weight': unit_weight,
+        'friction_angle': friction_angle,
+        'cohesion': cohesion,
+        'water_table': water_table,
+        'method': method,
+        'soil_type': soil_type
+    }
     msg = (
         f"簡化法FS={FS:.2f}（≧1.5 {'合格' if is_pass else '不合格'}）\n"
         f"參數：坡度={slope}%，單位重={γ}kN/m3，摩擦角={math.degrees(φ):.1f}°，凝聚力={c}kPa，滑動面深度={h}m，地下水位={water_table}m\n"
@@ -224,7 +283,12 @@ def slope_stability_safety_factor(slope: float, unit_weight: float = None, frict
         'soil_type': soil_type,
         'method': method,
         'h': h,
-        'message': msg
+        'message': msg,
+        'regulation': regulation,
+        'explanation': explanation,
+        'input_params': input_params,
+        'formula': formula,
+        'calculation_steps': calculation_steps
     }
 
 # --- USLE 參數查表 ---
@@ -318,6 +382,25 @@ def soil_erosion_modulus(length, slope, rainfall, region=None, soil_type=None, l
     P, P_src = get_p_factor(practice, practice_factor)
     # 7. USLE 計算
     A = R * K * L * S * C * P
+    formula = "A = R × K × L × S × C × P"
+    calculation_steps = (
+        f"A = {R:.2f} × {K:.3f} × {L:.3f} × {S:.3f} × {C:.3f} × {P:.3f} = {A:.2f}"
+    )
+    regulation = "依據《水土保持技術規範》第35、92條及附件USLE公式、參數表"
+    explanation = "USLE公式為國際通用土壤流失量推估方法，台灣水保規範明定可用於坡地土壤侵蝕評估。"
+    input_params = {
+        'length': length,
+        'slope': slope,
+        'rainfall': rainfall,
+        'region': region,
+        'soil_type': soil_type,
+        'land_use': land_use,
+        'practice': practice,
+        'soil_factor': soil_factor,
+        'cover_factor': cover_factor,
+        'practice_factor': practice_factor,
+        'method': method
+    }
     msg = (
         f"USLE公式：A = R*K*L*S*C*P\n"
         f"R(降雨侵蝕力)={R:.2f}（{R_src}），K(土壤可蝕性)={K:.3f}（{K_src}），L(坡長)={L:.3f}，S(坡度)={S:.3f}，C(覆蓋)={C:.3f}（{C_src}），P(水保)={P:.3f}（{P_src}）\n"
@@ -338,7 +421,12 @@ def soil_erosion_modulus(length, slope, rainfall, region=None, soil_type=None, l
         'S': S,
         'C': C, 'C_src': C_src,
         'P': P, 'P_src': P_src,
-        'message': msg
+        'message': msg,
+        'regulation': regulation,
+        'explanation': explanation,
+        'input_params': input_params,
+        'formula': formula,
+        'calculation_steps': calculation_steps
     }
 
 # Rational 公式逕流係數查表
@@ -410,6 +498,21 @@ def catchment_peak_runoff(area, rainfall_intensity=None, runoff_coeff=None, land
     A = area  # ha
     # 4. Rational 公式 Q = C * I * A / 360
     Q = C * I * A / 360
+    formula = "Q = C × I × A / 360"
+    calculation_steps = f"Q = {C:.2f} × {I:.1f} × {A:.2f} / 360 = {Q:.4f} cms"
+    regulation = "依據《水土保持技術規範》第16、17、18條及附件降雨強度、逕流係數表"
+    explanation = "集水區面積小於1000公頃時，無實測資料可採Rational公式計算洪峰流量。"
+    input_params = {
+        'area': area,
+        'rainfall_intensity': rainfall_intensity,
+        'runoff_coeff': runoff_coeff,
+        'land_use': land_use,
+        'region': region,
+        'return_period': return_period,
+        'duration': duration,
+        'method': method,
+        'P': P
+    }
     msg = (
         f"Rational公式：Q = C * I * A / 360\n"
         f"C(逕流係數)={C:.2f}（{C_src}），I(降雨強度)={I:.1f}mm/hr（{I_src}），A(面積)={A:.2f}ha\n"
@@ -423,7 +526,12 @@ def catchment_peak_runoff(area, rainfall_intensity=None, runoff_coeff=None, land
         'rainfall_intensity_src': I_src,
         'area': A,
         'method': method,
-        'message': msg
+        'message': msg,
+        'regulation': regulation,
+        'explanation': explanation,
+        'input_params': input_params,
+        'formula': formula,
+        'calculation_steps': calculation_steps
     }
 
 def retaining_wall_stability_check(height: float, thickness: float, unit_weight: float = None, friction_angle: float = None, cohesion: float = None, backfill_slope: float = 0, water_table: float = 0, soil_type: str = None):
@@ -484,6 +592,24 @@ def retaining_wall_stability_check(height: float, thickness: float, unit_weight:
         f"土壤參數：單位重={γ}kN/m3，摩擦角={φ}°，凝聚力={c}kPa，Kₐ={K_a:.3f}\n"
         f"依據《水土保持技術規範》與常用設計手冊，建議安全係數：滑動≧1.5，傾倒≧2.0，承載≧2.5。"
     )
+    formula = "滑動: SF = (W tanφ + cB) / Pa\n傾倒: SF = Mr / Mo\n承載: SF = q_allow / q_max"
+    calculation_steps = (
+        f"滑動: SF = ({W:.2f} × tan{φ:.2f}° + {c:.2f} × {B:.2f}) / {P_a:.2f} = {F_slide:.2f}\n"
+        f"傾倒: SF = {M_r:.2f} / {M_o:.2f} = {F_overturn:.2f}\n"
+        f"承載: SF = {q_allow:.2f} / {q_max:.2f} = {F_bearing:.2f}"
+    )
+    regulation = "依據《水土保持技術規範》第117、118、164條及附件最小安全係數表"
+    explanation = "擋土牆設計須同時檢核滑動、傾倒、承載三項安全係數，並符合規範建議標準。"
+    input_params = {
+        'height': height,
+        'thickness': thickness,
+        'unit_weight': unit_weight,
+        'friction_angle': friction_angle,
+        'cohesion': cohesion,
+        'backfill_slope': backfill_slope,
+        'water_table': water_table,
+        'soil_type': soil_type
+    }
     return {
         'sf_slide': F_slide,
         'sf_overturn': F_overturn,
@@ -500,7 +626,12 @@ def retaining_wall_stability_check(height: float, thickness: float, unit_weight:
         'thickness': B,
         'backfill_slope': β,
         'water_table': h_w,
-        'message': msg
+        'message': msg,
+        'regulation': regulation,
+        'explanation': explanation,
+        'input_params': input_params,
+        'formula': formula,
+        'calculation_steps': calculation_steps
     }
 
 def vegetation_slope_suggestion(slope: float, soil_type: str, climate: str):

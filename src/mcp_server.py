@@ -74,27 +74,40 @@ def calc_active_earth_pressure(phi: float) -> dict:
     """
     計算主動土壓力係數 Ka（輸入內摩擦角，單位：度）。
     """
-    ka = active_earth_pressure_coefficient(phi)
-    return {"success": True, "data": {"Ka": ka}, "message": f"主動土壓力係數 Ka = {ka}"}
+    result = active_earth_pressure_coefficient(phi)
+    msg = (
+        f"主動土壓力係數 Ka = {result['Ka']}\n"
+        f"依據: {result['regulation']}\n說明: {result['explanation']}\n"
+        f"輸入參數: {result['input_params']}\n公式: {result['formula']}\n計算過程: {result['calculation_steps']}"
+    )
+    return {"success": True, "data": result, "message": msg}
 
 @mcp.tool()
 def calc_passive_earth_pressure(phi: float) -> dict:
     """
     計算被動土壓力係數 Kp（輸入內摩擦角，單位：度）。
     """
-    kp = passive_earth_pressure_coefficient(phi)
-    return {"success": True, "data": {"Kp": kp}, "message": f"被動土壓力係數 Kp = {kp}"}
+    result = passive_earth_pressure_coefficient(phi)
+    msg = (
+        f"被動土壓力係數 Kp = {result['Kp']}\n"
+        f"依據: {result['regulation']}\n說明: {result['explanation']}\n"
+        f"輸入參數: {result['input_params']}\n公式: {result['formula']}\n計算過程: {result['calculation_steps']}"
+    )
+    return {"success": True, "data": result, "message": msg}
 
 @mcp.tool()
 def calc_channel_flow_velocity(n: float, r: float, s: float, material: str = None) -> dict:
     """
     曼寧公式計算排水溝流速（n: 曼寧係數, r: 水力半徑(m), s: 坡度, material: 材料名稱，可自動檢核流速）。
     """
-    v, warning = channel_flow_velocity(n, r, s, material)
-    msg = f"流速 v = {v:.4f} m/s"
-    if warning:
-        msg += f"\n{warning}"
-    return {"success": True, "data": {"velocity": v, "warning": warning}, "message": msg}
+    result = channel_flow_velocity(n, r, s, material)
+    msg = (
+        f"流速 v = {result['velocity']:.4f} m/s"
+        f"{f'\n{result["warning"]}' if result['warning'] else ''}\n"
+        f"依據: {result['regulation']}\n說明: {result['explanation']}\n"
+        f"輸入參數: {result['input_params']}\n公式: {result['formula']}\n計算過程: {result['calculation_steps']}"
+    )
+    return {"success": True, "data": result, "message": msg}
 
 @mcp.tool()
 def calc_channel_flow_discharge(v: float, a: float) -> dict:
@@ -109,8 +122,13 @@ def calc_slope_stability(slope: float, unit_weight: float, friction_angle: float
     """
     邊坡穩定安全係數計算。
     """
-    sf, m, is_pass, msg = slope_stability_safety_factor(slope, unit_weight, friction_angle, cohesion, water_table, method)
-    return {"success": True, "data": {"FS": sf, "method": m, "pass": is_pass}, "message": f"安全係數 = {sf:.2f}，方法：{m}，合格：{is_pass}\n{msg}"}
+    result = slope_stability_safety_factor(slope, unit_weight, friction_angle, cohesion, water_table, method)
+    msg = (
+        f"安全係數 = {result['fs']:.2f}，方法：{result['method']}，合格：{result['is_pass']}\n"
+        f"依據: {result['regulation']}\n說明: {result['explanation']}\n"
+        f"輸入參數: {result['input_params']}\n公式: {result['formula']}\n計算過程: {result['calculation_steps']}"
+    )
+    return {"success": True, "data": result, "message": msg}
 
 @mcp.tool()
 def calc_soil_erosion(
@@ -140,7 +158,12 @@ def calc_soil_erosion(
         practice_factor=practice_factor,
         method=method
     )
-    return {"success": True, "data": result, "message": ""}
+    msg = (
+        f"土壤侵蝕模數/流失量 = {result['erosion_modulus']:.2f}\n"
+        f"依據: {result['regulation']}\n說明: {result['explanation']}\n"
+        f"輸入參數: {result['input_params']}\n公式: {result['formula']}\n計算過程: {result['calculation_steps']}"
+    )
+    return {"success": True, "data": result, "message": msg}
 
 @mcp.tool()
 def calc_catchment_runoff(
@@ -168,7 +191,12 @@ def calc_catchment_runoff(
         method=method,
         P=P
     )
-    return {"success": True, "data": result, "message": ""}
+    msg = (
+        f"最大逕流量 Q = {result['peak_runoff']:.4f} cms\n"
+        f"依據: {result['regulation']}\n說明: {result['explanation']}\n"
+        f"輸入參數: {result['input_params']}\n公式: {result['formula']}\n計算過程: {result['calculation_steps']}"
+    )
+    return {"success": True, "data": result, "message": msg}
 
 @mcp.tool()
 def check_retaining_wall(
@@ -194,7 +222,12 @@ def check_retaining_wall(
         water_table=water_table,
         soil_type=soil_type
     )
-    return {"success": True, "data": result, "message": ""}
+    msg = (
+        f"滑動SF={result['sf_slide']:.2f}，傾倒SF={result['sf_overturn']:.2f}，承載SF={result['sf_bearing']:.2f}，合格：{result['is_pass']}\n"
+        f"依據: {result['regulation']}\n說明: {result['explanation']}\n"
+        f"輸入參數: {result['input_params']}\n公式: {result['formula']}\n計算過程: {result['calculation_steps']}"
+    )
+    return {"success": True, "data": result, "message": msg}
 
 @mcp.tool()
 def suggest_vegetation_slope(slope: float, soil_type: str, climate: str) -> dict:
