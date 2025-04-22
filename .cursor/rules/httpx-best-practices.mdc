@@ -1,0 +1,14 @@
+---
+description: 
+globs: .py
+alwaysApply: false
+---
+
+# Best practices for using httpx in asynchronous HTTP requests
+
+- Use `async with` for managing client sessions to ensure proper resource cleanup
+- Implement proper timeout settings to prevent hanging requests
+- Use `httpx.AsyncClient` for concurrent requests to improve performance
+- Handle exceptions gracefully, especially `httpx.HTTPError`
+- Utilize streaming for large payloads to manage memory efficiently
+- Set appropriate headers for authentication and content type

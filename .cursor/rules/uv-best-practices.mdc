@@ -1,0 +1,13 @@
+---
+description: 
+globs: .py
+alwaysApply: false
+---
+
+# Best practices for managing Python projects with uv
+
+- Use `uv init` to set up new projects quickly
+- Manage dependencies with `uv add` to ensure reproducibility
+- Use virtual environments with `uv venv` to isolate project dependencies
+- Regularly update dependencies with `uv update` to maintain security and performance
+- Use `uv run` to execute scripts within the correct environment context

@@ -1,0 +1,7 @@
+# ���n�M��
+pyproj>=3.0.0  # �Ω�g�n�׻PUTM�y���ഫ
+uvicorn>=0.20.0  # �Y�ݱҰ�HTTP���A��
+pydantic>=1.10.0  # FastMCP �̿�
+starlette>=0.26.0  # FastMCP �̿�
+# �Y���ۭq�� mcp �M��A�Юھڹ�ڱ��p�ɤW
+mcp  # MCP server �����\��

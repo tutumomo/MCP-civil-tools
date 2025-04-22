@@ -1,0 +1,15 @@
+---
+description: 
+globs: .py
+alwaysApply: false
+---
+
+# Best practices and guidelines for Model Context Protocol (MCP)
+
+- Use `FastMCP` for simpler server implementations
+- Implement tools with clear descriptions and type annotations
+- Utilize `Sampling` for user interaction before executing critical operations
+- Leverage lifecycle hooks for managing resources and logging
+- Ensure proper error handling and logging in tools
+- Use `stdio` transport for local development and `sse` for cloud deployment
+- Implement caching mechanisms using lifecycle context for performance optimization

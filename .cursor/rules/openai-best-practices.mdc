@@ -1,0 +1,14 @@
+---
+description: 
+globs: .py
+alwaysApply: false
+---
+
+# Best practices for integrating OpenAI API
+
+- Use environment variables to manage API keys securely
+- Implement rate limiting to avoid hitting API limits
+- Use the `tools` parameter to guide model behavior effectively
+- Handle API responses robustly, including error cases
+- Implement retries with exponential backoff for transient failures
+- Use streaming responses for real-time applications to improve user experience

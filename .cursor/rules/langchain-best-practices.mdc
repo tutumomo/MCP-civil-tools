@@ -1,0 +1,13 @@
+---
+description: 
+globs: .py
+alwaysApply: false
+---
+
+# Best practices for using LangChain with MCP
+
+- Use `load_mcp_tools` to integrate MCP tools seamlessly
+- Implement `create_react_agent` for efficient agent-based workflows
+- Ensure proper error handling and logging within LangChain integrations
+- Use asynchronous methods for better performance in MCP interactions
+- Keep tool descriptions clear and concise for better model understanding

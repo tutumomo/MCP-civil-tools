@@ -1,0 +1,14 @@
+---
+description: 
+globs: .py
+alwaysApply: false
+---
+
+# Best practices for asynchronous programming with asyncio
+
+- Use `asyncio.run()` as the entry point for your asynchronous code
+- Implement proper error handling with `try/except` blocks in coroutines
+- Use `async with` for context managers to ensure resource cleanup
+- Avoid blocking calls in asynchronous code; use `asyncio.sleep()` for delays
+- Use `asyncio.gather()` for concurrent execution of coroutines
+- Implement proper task cancellation to manage resource usage

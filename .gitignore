@@ -1,0 +1,24 @@
+# Python 編譯暫存檔案
+__pycache__/
+*.py[cod]
+
+# 虛擬環境
+.venv/
+venv/
+
+# IDE 設定檔
+.vscode/
+.idea/
+
+# 系統檔案
+.DS_Store
+Thumbs.db
+
+# 測試覆蓋率
+htmlcov/
+.coverage
+
+# 其他暫存檔
+*.log
+
+# （可依實際需求增減） 
