@@ -33,3 +33,73 @@ class EarthPressureResult(BaseModel):
 class ChannelFlowResult(BaseModel):
     velocity: float   # 流速 (m/s)
     q: float          # 流量 (cms)
+
+# 邊坡穩定安全係數
+class SlopeStabilityResult(BaseModel):
+    safety_factor: float
+    method: str
+    is_pass: bool
+    message: str
+
+# 土壤侵蝕模數/流失量
+class SoilErosionResult(BaseModel):
+    erosion_modulus: float
+    soil_loss: float
+    method: str
+    message: str
+
+# 集水區逕流量
+class RunoffResult(BaseModel):
+    peak_runoff: float
+    method: str
+    message: str
+
+# 護岸/擋土牆穩定檢核
+class RetainingWallCheckResult(BaseModel):
+    sliding_sf: float
+    overturning_sf: float
+    bearing_sf: float
+    is_pass: bool
+    message: str
+
+# 植生護坡設計建議
+class VegetationSlopeSuggestion(BaseModel):
+    slope: float
+    soil_type: str
+    climate: str
+    suggested_method: str
+    suggested_species: str
+    coverage: float
+    message: str
+
+# 常用材料設計參數查詢
+class MaterialParameterResult(BaseModel):
+    material: str
+    unit_weight: float = None
+    cohesion: float = None
+    friction_angle: float = None
+    strength: float = None
+    message: str
+
+# 坡面保護工法建議
+class SlopeProtectionSuggestion(BaseModel):
+    slope: float
+    soil_type: str
+    rainfall: float
+    suggested_method: str
+    message: str
+
+# 滲水設施設計
+class InfiltrationFacilityResult(BaseModel):
+    facility_type: str
+    design_flow: float
+    suggested_size: str
+    message: str
+
+# IDF 曲線查詢
+class IDFQueryResult(BaseModel):
+    location: str
+    return_period: float
+    duration: float
+    intensity: float
+    message: str
