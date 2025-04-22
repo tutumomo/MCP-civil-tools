@@ -17,3 +17,19 @@ class LatLonResult(BaseModel):
 # 統一錯誤回傳格式
 class ErrorResponse(BaseModel):
     error: str  # 錯誤訊息
+
+# 曼寧係數查詢結果
+class ManningNResult(BaseModel):
+    description: str  # 材料描述
+    n_value: float    # 曼寧係數
+
+# 土壓力係數查詢結果
+class EarthPressureResult(BaseModel):
+    method: str       # 計算方法
+    phi: float        # 內摩擦角
+    k_value: float    # 土壓力係數
+
+# 排水溝流速計算結果
+class ChannelFlowResult(BaseModel):
+    velocity: float   # 流速 (m/s)
+    q: float          # 流量 (cms)

@@ -73,3 +73,42 @@ DATUMS = {
     "WGS 84": "EPSG:4326",
     "TWD97": "EPSG:3824",
 }
+
+# --- 曼寧係數查詢（簡化範例，實際可擴充）---
+MANNING_N_TABLE = {
+    "混凝土光滑": 0.012,
+    "混凝土粗糙": 0.017,
+    "土渠整修": 0.022,
+    "天然土渠": 0.030,
+    "碎石河道": 0.035,
+}
+
+def query_manning_n(material: str):
+    n = MANNING_N_TABLE.get(material)
+    if n is not None:
+        return material, n
+    else:
+        return None, None
+
+# --- 土壓力係數計算 ---
+def active_earth_pressure_coefficient(phi_deg: float) -> float:
+    """主動土壓力係數 Ka (庫倫公式)"""
+    import math
+    phi = math.radians(phi_deg)
+    return round((1 - math.sin(phi)) / (1 + math.sin(phi)), 4)
+
+def passive_earth_pressure_coefficient(phi_deg: float) -> float:
+    """被動土壓力係數 Kp (庫倫公式)"""
+    import math
+    phi = math.radians(phi_deg)
+    return round((1 + math.sin(phi)) / (1 - math.sin(phi)), 4)
+
+# --- 排水溝流速計算（曼寧公式）---
+def channel_flow_velocity(n: float, r: float, s: float) -> float:
+    """曼寧公式計算流速 v = (1/n) * R^(2/3) * S^(1/2)"""
+    import math
+    return (1/n) * (r ** (2/3)) * (s ** 0.5)
+
+def channel_flow_discharge(v: float, a: float) -> float:
+    """流量 Q = v * A"""
+    return v * a
