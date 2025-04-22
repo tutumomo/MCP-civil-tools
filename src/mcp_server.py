@@ -4,7 +4,7 @@ MCP Civil Tools 伺服器
 本伺服器提供座標轉換與多種常用土木工程計算工具，供 LLM 或 MCP 客戶端調用。
 """
 from mcp.server.fastmcp import FastMCP
-from util import latlon_to_projected, projected_to_latlon, query_manning_n, active_earth_pressure_coefficient, passive_earth_pressure_coefficient, channel_flow_velocity, channel_flow_discharge, slope_stability_safety_factor, soil_erosion_modulus, catchment_peak_runoff, retaining_wall_stability_check, vegetation_slope_suggestion, material_parameter_query, idf_curve_query
+from util import latlon_to_projected, projected_to_latlon, query_manning_n, active_earth_pressure_coefficient, passive_earth_pressure_coefficient, channel_flow_velocity, channel_flow_discharge, slope_stability_safety_factor, soil_erosion_modulus, catchment_peak_runoff, retaining_wall_stability_check, vegetation_slope_suggestion, material_parameter_query, idf_curve_query, SLOPE_PROTECTION_TABLE
 from utm_types import UTMResult, LatLonResult, ErrorResponse, ManningNResult, EarthPressureResult, ChannelFlowResult, VegetationSlopeSuggestion, SoilErosionResult  # 導入自訂型別
 from fastapi import Query
 # 新增支援清單查詢函式
@@ -271,16 +271,30 @@ def suggest_slope_protection(slope: float, soil_type: str = None, rainfall: floa
     """
     坡面保護工法建議查詢（依坡度分級、土壤、降雨/地區自動查表）。
     """
-    slope, soil_type, rainfall, method, msg = slope_protection_suggestion(slope, soil_type, rainfall, region)
+    # 取得 method, desc
+    method = ""
+    desc = ""
+    for limit, m, d in SLOPE_PROTECTION_TABLE:
+        if slope <= limit:
+            method = m
+            desc = d
+            break
+    if not method:
+        method = "結構型護坡（混凝土、石籠）"
+        desc = "超陡坡，需採結構型護坡並加強排水與穩定。"
+    msg = f"坡度={slope}%，土壤={soil_type or '-'}，降雨={rainfall or '-'}mm，建議工法：{method}。{desc}"
+    regulation = "依據《水土保持技術規範》第8、167、172條及附件坡度分級、樣區面積、覆蓋率等規定"
     return {
         "success": True,
         "data": {
             "slope": slope,
             "soil_type": soil_type,
             "rainfall": rainfall,
-            "suggested_method": method
+            "suggested_method": method,
+            "description": desc,
+            "regulation": regulation
         },
-        "message": msg
+        "message": f"{msg}\n{regulation}"
     }
 
 @mcp.tool()

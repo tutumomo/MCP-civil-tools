@@ -838,3 +838,23 @@ def idf_curve_query(location: str, return_period: float, duration: float, P: flo
         'source': src,
         'message': msg
     }
+
+def slope_protection_suggestion(slope: float, soil_type: str = None, rainfall: float = None, region: str = None):
+    """
+    坡面保護工法建議查詢（依坡度分級、土壤、降雨/地區自動查表）。
+    參數：坡度、土壤、降雨、地區
+    回傳：建議工法、說明
+    """
+    # 根據坡度查表
+    method = ""
+    for limit, m, desc in SLOPE_PROTECTION_TABLE:
+        if slope <= limit:
+            method = m
+            break
+    if not method:
+        method = "結構型護坡（混凝土、石籠）"
+        desc = "超陡坡，需採結構型護坡並加強排水與穩定。"
+    # 組合說明
+    msg = f"坡度={slope}%，土壤={soil_type or '-'}，降雨={rainfall or '-'}mm，建議工法：{method}。{desc}"
+    regulation = "依據《水土保持技術規範》第8、167、172條及附件坡度分級、樣區面積、覆蓋率等規定"
+    return slope, soil_type, rainfall, method, f"{msg}\n{regulation}"
