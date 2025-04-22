@@ -5,3 +5,4 @@ pydantic>=1.10.0  # FastMCP �̿�
 starlette>=0.26.0  # FastMCP �̿�
 # �Y���ۭq�� mcp �M��A�Юھڹ�ڱ��p�ɤW
 mcp  # MCP server �����\��
+fastapi>=0.95.0  # API 框架

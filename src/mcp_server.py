@@ -121,7 +121,7 @@ def calc_soil_erosion(
     cover_factor: float = None,
     practice_factor: float = None,
     method: str = "USLE"
-) -> SoilErosionResult:
+) -> dict:
     """
     土壤侵蝕模數/流失量計算（支援地區、土壤、土地利用、措施查表）。
     """
@@ -136,12 +136,7 @@ def calc_soil_erosion(
         practice_factor=practice_factor,
         method=method
     )
-    return SoilErosionResult(
-        erosion_modulus=result['erosion_modulus'],
-        soil_loss=result['soil_loss'],
-        method=result['method'],
-        message=result['message']
-    )
+    return result
 
 @mcp.tool()
 def calc_catchment_runoff(
@@ -196,20 +191,20 @@ def check_retaining_wall(
     return result
 
 @mcp.tool()
-def suggest_vegetation_slope(slope: float, soil_type: str, climate: str) -> VegetationSlopeSuggestion:
+def suggest_vegetation_slope(slope: float, soil_type: str, climate: str) -> dict:
     """
     植生護坡設計建議。
     """
     s, st, c, method, species, coverage, msg = vegetation_slope_suggestion(slope, soil_type, climate)
-    return VegetationSlopeSuggestion(
-        slope=s,
-        soil_type=st,
-        climate=c,
-        suggested_method=method,
-        suggested_species=species,
-        coverage=coverage,
-        message=msg
-    )
+    return {
+        "slope": s,
+        "soil_type": st,
+        "climate": c,
+        "suggested_method": method,
+        "suggested_species": species,
+        "coverage": coverage,
+        "message": msg
+    }
 
 @mcp.tool()
 def query_material_parameter(material: str) -> str:
@@ -220,12 +215,30 @@ def query_material_parameter(material: str) -> str:
     return f"材料：{m}，單位重：{uw}kN/m3，凝聚力：{coh}kPa，摩擦角：{fa}°，強度：{strength}kPa\n{msg}"
 
 @mcp.tool()
-def suggest_slope_protection(slope: float, soil_type: str, rainfall: float) -> str:
+def suggest_slope_protection(slope: float, soil_type: str = None, rainfall: float = None, region: str = None) -> dict:
     """
-    坡面保護工法建議。
+    坡面保護工法建議查詢（依坡度分級、土壤、降雨/地區自動查表）。
+    - slope: 坡度（百分比）
+    - soil_type: 土壤類型（可選）
+    - rainfall: 年降雨量（mm，可選）
+    - region: 地區名稱（可選，若有則自動查表年雨量）
+    回傳：
+    {
+        "slope": 坡度,
+        "soil_type": 土壤類型,
+        "rainfall": 年降雨量,
+        "suggested_method": 建議工法,
+        "message": 詳細說明
+    }
     """
-    s, st, r, method, msg = slope_protection_suggestion(slope, soil_type, rainfall)
-    return f"建議工法：{method}\n{msg}"
+    slope, soil_type, rainfall, method, msg = slope_protection_suggestion(slope, soil_type, rainfall, region)
+    return {
+        "slope": slope,
+        "soil_type": soil_type,
+        "rainfall": rainfall,
+        "suggested_method": method,
+        "message": msg
+    }
 
 @mcp.tool()
 def design_infiltration_facility(
@@ -258,37 +271,6 @@ def query_idf_curve(
     """
     result = idf_curve_query(location, return_period, duration)
     return result
-
-@mcp.post("/slope_protection_suggestion")
-def api_slope_protection_suggestion(
-    slope: float = Query(..., description="坡度 (%)"),
-    soil_type: str = Query(None, description="土壤類型（如：壤土、砂土、黏土等，可選）"),
-    rainfall: float = Query(None, description="年降雨量（mm，可選）"),
-    region: str = Query(None, description="地區名稱（如：台北市，可選）")
-):
-    """
-    坡面保護工法建議查詢（依坡度分級、土壤、降雨/地區自動查表）。
-    - slope: 坡度（百分比）
-    - soil_type: 土壤類型（可選）
-    - rainfall: 年降雨量（mm，可選）
-    - region: 地區名稱（可選，若有則自動查表年雨量）
-    回傳：
-    {
-        "slope": 坡度,
-        "soil_type": 土壤類型,
-        "rainfall": 年降雨量,
-        "suggested_method": 建議工法,
-        "message": 詳細說明
-    }
-    """
-    slope, soil_type, rainfall, method, msg = slope_protection_suggestion(slope, soil_type, rainfall, region)
-    return {
-        "slope": slope,
-        "soil_type": soil_type,
-        "rainfall": rainfall,
-        "suggested_method": method,
-        "message": msg
-    }
 
 # 提供 ASGI 應用給 uvicorn 啟動 HTTP 服務
 app = mcp.sse_app()  # 讓 uvicorn 可以直接啟動 HTTP 伺服器
