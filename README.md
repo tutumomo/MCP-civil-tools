@@ -66,12 +66,22 @@ uvicorn src.mcp_server:app --port 8000
     }
   }
 }
+或是
+    "MCP-civil-tools": {
+      "command": "C:/TOMO/MCP-civil-tools/.venv/Scripts/python.exe",
+      "args": [
+        "C:/TOMO/MCP-civil-tools/src/mcp_server.py"
+      ],
+      "disabled": true,
+      "autoApprove": []
+    },
+
 ```
 - `command` 請填入你虛擬環境的 python.exe 絕對路徑。
 - `args` 請填入 mcp_server.py 的絕對路徑。
 
 以 Windowss 系統，Command args，輸入格式如下：
-c:\Users\tutumomo\Documents\MCP\MCP-civil-tools\.venv\Scripts\python.exe c:\Users\tutumomo\Documents\MCP\MCP-civil-tools\src\mcp_server.py
+C:\TOMO\MCP-civil-tools\.venv\Scripts\python.exe C:\TOMO\MCP-civil-tools\src\mcp_server.py
 
 以 MAC 系統，Command args，輸入格式如下：
 /Users/tuchengshin/Documents/MCP/MCP-civil-tools/.venv/bin/python3 

@@ -18,3 +18,4 @@ alwaysApply: false
 - Ensure proper error handling and logging in tools
 - Use `stdio` transport for local development and `sse` for cloud deployment
 - Implement caching mechanisms using lifecycle context for performance optimization
+- 優化完成後，請一併修改或更新專案內相關檔案(包括相依的程式檔、readme.md 等)。

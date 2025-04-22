@@ -90,6 +90,12 @@ MANNING_N_TABLE = {
     "混凝土": 0.012,
 }
 
+def get_manning_materials_list():
+    """
+    回傳所有支援的曼寧係數材料名稱清單。
+    """
+    return list(MANNING_N_TABLE.keys())
+
 # 最大容許流速表（依據附件 ALL.md）
 MAX_VELOCITY_TABLE = {
     "純細砂": (0.23, 0.30),
@@ -105,6 +111,12 @@ MAX_VELOCITY_TABLE = {
     "硬岩": (3.05, 4.57),
     "混凝土": (4.57, 6.10),
 }
+
+def get_max_velocity_materials_list():
+    """
+    回傳所有支援的最大容許流速材料名稱清單。
+    """
+    return list(MAX_VELOCITY_TABLE.keys())
 
 def query_manning_n(material: str):
     """
@@ -229,6 +241,30 @@ P_TABLE = {
     '無措施': 1.0, '等高耕作': 0.5, '梯田': 0.2, '覆蓋作物': 0.3,
 }
 
+def get_supported_regions():
+    """
+    回傳所有支援的地區名稱清單（R 因子/降雨/IDF/年雨量等）。
+    """
+    return list(R_TABLE.keys())
+
+def get_supported_soil_types():
+    """
+    回傳所有支援的土壤類型清單（K 因子/土壤參數/滲透係數等）。
+    """
+    return list(K_TABLE.keys())
+
+def get_supported_land_uses():
+    """
+    回傳所有支援的土地利用型態清單（C 因子/逕流係數等）。
+    """
+    return list(C_TABLE.keys())
+
+def get_supported_practices():
+    """
+    回傳所有支援的水保措施清單（P 因子）。
+    """
+    return list(P_TABLE.keys())
+
 def get_r_factor(region, rainfall=None):
     if region and region in R_TABLE:
         return R_TABLE[region], f"依據地區查表({region})"
@@ -309,10 +345,12 @@ def soil_erosion_modulus(length, slope, rainfall, region=None, soil_type=None, l
 RUNOFF_COEFF_TABLE = {
     '都市': 0.8, '住宅區': 0.6, '工業區': 0.7, '道路': 0.85, '農地': 0.4, '林地': 0.2, '裸地': 0.5, '草地': 0.3,
 }
-# 地區降雨強度（mm/hr）簡化查表（假設10年重現期、60分鐘歷時）
-RAINFALL_INTENSITY_TABLE = {
-    '台北市': 110, '新北市': 105, '桃園市': 100, '台中市': 95, '南投縣': 120, '高雄市': 90, '屏東縣': 100, '花蓮縣': 130, '台東縣': 125,
-}
+
+def get_supported_runoff_land_uses():
+    """
+    回傳所有支援的土地利用型態清單（逕流係數）。
+    """
+    return list(RUNOFF_COEFF_TABLE.keys())
 
 def get_runoff_coeff(land_use, runoff_coeff=None):
     if land_use and land_use in RUNOFF_COEFF_TABLE:
@@ -517,7 +555,6 @@ def material_parameter_query(material: str):
     """
     常用材料設計參數查詢。
     """
-    # 常用材料參數表（依據土木工程常用標準值與規範彙整）
     MATERIAL_PARAMETER_TABLE = {
         # 土壤類
         "一般黏土": {"unit_weight": 18.0, "cohesion": 20.0, "friction_angle": 25.0, "strength": 200.0, "message": "依據常用土壤工程手冊"},
@@ -542,7 +579,16 @@ def material_parameter_query(material: str):
         param = MATERIAL_PARAMETER_TABLE[key]
         return (key, param["unit_weight"], param["cohesion"], param["friction_angle"], param["strength"], param["message"])
     else:
-        return (material, None, None, None, None, "查無此材料，請確認名稱或參考規範。")
+        return (material, None, None, None, None, f"查無此材料，支援查詢的材料有：{', '.join(MATERIAL_PARAMETER_TABLE.keys())}")
+
+def get_supported_materials():
+    """
+    回傳所有支援的常用材料設計參數材料名稱清單。
+    """
+    MATERIAL_PARAMETER_TABLE = {
+        # ... existing code ...
+    }
+    return list(MATERIAL_PARAMETER_TABLE.keys())
 
 # 坡面保護工法建議查表
 SLOPE_PROTECTION_TABLE = [
@@ -556,48 +602,11 @@ SLOPE_PROTECTION_TABLE = [
     (999, "結構型護坡（混凝土、石籠）", "超陡坡，需採結構型護坡並加強排水與穩定。"),
 ]
 
-# 土壤鬆散、降雨量大時加強建議
-def slope_protection_suggestion(slope: float, soil_type: str = None, rainfall: float = None, region: str = None):
+def get_supported_slope_protection_methods():
     """
-    坡面保護工法建議（依坡度分級、土壤、降雨/地區自動查表）。
+    回傳所有支援的坡面保護工法建議清單。
     """
-    # 坡度分級查表
-    for upper, method, desc in SLOPE_PROTECTION_TABLE:
-        if slope <= upper:
-            suggested_method = method
-            method_desc = desc
-            break
-    else:
-        suggested_method = "結構型護坡"
-        method_desc = "坡度極大，需採結構型護坡。"
-
-    # 土壤鬆散、降雨量大時加強建議
-    extra = ""
-    loose_soil = soil_type and ("砂" in soil_type or "鬆" in soil_type)
-    high_rain = False
-    if rainfall and rainfall > 2500:
-        high_rain = True
-    if region:
-        # 若有地區，嘗試查表取得年雨量
-        R_TABLE = {
-            '台北市': 2400, '新北市': 2500, '桃園市': 2100, '台中市': 2100, '南投縣': 2800, '高雄市': 2200, '屏東縣': 2300, '花蓮縣': 3000, '台東縣': 2900,
-        }
-        rain = R_TABLE.get(region)
-        if rain and rain > 2500:
-            high_rain = True
-    if loose_soil and high_rain:
-        extra = "土壤鬆散且降雨量大，建議加強排水與結構型工法。"
-    elif loose_soil:
-        extra = "土壤鬆散，建議加強格框、土工網或結構型工法。"
-    elif high_rain:
-        extra = "降雨量大，建議加強排水與穩定措施。"
-
-    # 依據說明
-    regulation = (
-        "依據《水土保持技術規範》及附件坡度分級、常用工法建議，坡度愈大、土壤愈鬆、降雨愈多，應採更強化之坡面保護工法，並加強排水與分區分期施工。"
-    )
-    msg = f"{method_desc} {extra}\n{regulation}"
-    return slope, soil_type, rainfall, suggested_method, msg
+    return list(set([row[1] for row in SLOPE_PROTECTION_TABLE]))
 
 # 土壤滲透係數查表（m/hr）
 SOIL_K_TABLE = {
@@ -609,86 +618,11 @@ SOIL_K_TABLE = {
     '一般黏土': 0.01,
 }
 
-def get_soil_k(soil_type, k=None):
-    if soil_type and soil_type in SOIL_K_TABLE:
-        return SOIL_K_TABLE[soil_type], f"依據土壤類型查表({soil_type})"
-    elif k is not None:
-        return k, "由使用者輸入"
-    else:
-        return 0.2, "預設值"
-
-def infiltration_facility_design(facility_type: str, k: float = None, area: float = None, rainfall: float = None, soil_type: str = None):
+def get_supported_soil_k_types():
     """
-    滲水設施設計（支援多型式、土壤查表、流量自動計算與尺寸建議）。
-    facility_type: 設施型式（滲井、滲渠、滲溝、滲透池）
-    k: 土壤滲透係數（m/hr）
-    area: 集水面積（m2）
-    rainfall: 設計降雨量（mm）
-    soil_type: 土壤類型（可選，若有則自動查表）
+    回傳所有支援的土壤滲透係數土壤類型清單。
     """
-    # 1. 土壤滲透係數查表
-    K, K_src = get_soil_k(soil_type, k)
-    # 2. 設計流量 Q = A * P / 3600 (m3/hr)，P=降雨量(mm)
-    if area and rainfall:
-        Q = area * rainfall / 1000 / 1  # m3/次（假設一次降雨）
-        Q_hr = area * rainfall / 1000  # m3/次（同上，1小時內排除）
-        Q_msg = f"依集水面積{area}m2與降雨量{rainfall}mm計算設計流量Q={Q_hr:.2f}m3/次"
-    else:
-        Q_hr = 1.0
-        Q_msg = "預設設計流量1.0m3/次"
-    # 3. 設施尺寸建議（簡化公式，依型式）
-    if facility_type == '滲井':
-        # 滲井設計：Q = π*D*H*K，假設D=1m，H=1.5m
-        D = 1.0
-        H = 1.5
-        q_infil = 3.14 * D * H * K  # m3/hr
-        n = max(1, int(Q_hr / q_infil) + 1)
-        size = f"直徑{D}m,深{H}m,數量{n}口"
-        size_msg = f"每口滲井可處理{q_infil:.2f}m3/hr，建議設置{n}口。"
-    elif facility_type == '滲渠':
-        # 滲渠設計：Q = 寬*深*長*K，假設寬0.5m,深1m,長5m
-        W = 0.5
-        H = 1.0
-        L = 5.0
-        q_infil = W * H * L * K  # m3/hr
-        n = max(1, int(Q_hr / q_infil) + 1)
-        size = f"寬{W}m,深{H}m,長{L}m,數量{n}條"
-        size_msg = f"每條滲渠可處理{q_infil:.2f}m3/hr，建議設置{n}條。"
-    elif facility_type == '滲溝':
-        # 滲溝設計：Q = 寬*深*長*K，假設寬0.3m,深0.5m,長10m
-        W = 0.3
-        H = 0.5
-        L = 10.0
-        q_infil = W * H * L * K
-        n = max(1, int(Q_hr / q_infil) + 1)
-        size = f"寬{W}m,深{H}m,長{L}m,數量{n}條"
-        size_msg = f"每條滲溝可處理{q_infil:.2f}m3/hr，建議設置{n}條。"
-    elif facility_type == '滲透池':
-        # 滲透池設計：Q = 面積*深*K，假設面積10m2,深1.2m
-        A = 10.0
-        H = 1.2
-        q_infil = A * H * K
-        n = max(1, int(Q_hr / q_infil) + 1)
-        size = f"面積{A}m2,深{H}m,數量{n}座"
-        size_msg = f"每座滲透池可處理{q_infil:.2f}m3/hr，建議設置{n}座。"
-    else:
-        size = "型式不明，請輸入滲井、滲渠、滲溝或滲透池"
-        size_msg = ""
-    # 4. 說明
-    msg = (
-        f"{Q_msg}，{size_msg}\n土壤滲透係數K={K}m/hr（{K_src}）\n依據《水土保持技術規範》與常用設計手冊，建議設施型式、尺寸及數量可依實際需求調整。"
-    )
-    return {
-        'facility_type': facility_type,
-        'design_flow': Q_hr,
-        'soil_k': K,
-        'soil_k_src': K_src,
-        'suggested_size': size,
-        'area': area,
-        'rainfall': rainfall,
-        'soil_type': soil_type,
-        'message': msg
-    }
+    return list(SOIL_K_TABLE.keys())
 
 # IDF曲線查表（部分地區、重現期、歷時，mm/hr）
 IDF_TABLE = {
@@ -708,6 +642,13 @@ IDF_TABLE = {
         50: {10: 240, 30: 160, 60: 135, 120: 100, 180: 70},
     },
 }
+
+def get_supported_idf_locations():
+    """
+    回傳所有支援的IDF曲線地點清單。
+    """
+    return list(IDF_TABLE.keys())
+
 # 若無查表資料，採經驗公式 I = a/(t+b)^n
 IDF_COEFF = {
     'default': {'a': 800, 'b': 15, 'n': 0.7},

@@ -7,6 +7,8 @@ from mcp.server.fastmcp import FastMCP
 from util import latlon_to_projected, projected_to_latlon, query_manning_n, active_earth_pressure_coefficient, passive_earth_pressure_coefficient, channel_flow_velocity, channel_flow_discharge, slope_stability_safety_factor, soil_erosion_modulus, catchment_peak_runoff, retaining_wall_stability_check, vegetation_slope_suggestion, material_parameter_query, slope_protection_suggestion, infiltration_facility_design, idf_curve_query
 from utm_types import UTMResult, LatLonResult, ErrorResponse, ManningNResult, EarthPressureResult, ChannelFlowResult, VegetationSlopeSuggestion, SoilErosionResult  # 導入自訂型別
 from fastapi import Query
+# 新增支援清單查詢函式
+from util import get_manning_materials_list, get_max_velocity_materials_list, get_supported_materials, get_supported_regions, get_supported_soil_types, get_supported_land_uses, get_supported_practices, get_supported_runoff_land_uses, get_supported_slope_protection_methods, get_supported_soil_k_types, get_supported_idf_locations
 
 # 建立 MCP 伺服器
 mcp = FastMCP("MCP Civil Tools")
@@ -63,7 +65,8 @@ def get_manning_n(material: str) -> str:
             msg += f"，最大容許流速範圍：{v_range[0]}~{v_range[1]} m/s"
         return msg
     else:
-        return "查無此材料，請確認名稱。"
+        supported = ', '.join(get_manning_materials_list())
+        return f"查無此材料，支援查詢的材料有：{supported}"
 
 @mcp.tool()
 def calc_active_earth_pressure(phi: float) -> str:
@@ -223,6 +226,8 @@ def query_material_parameter(material: str) -> str:
     常用材料設計參數查詢。
     """
     m, uw, coh, fa, strength, msg = material_parameter_query(material)
+    if uw is None and coh is None and fa is None and strength is None:
+        return msg
     return f"材料：{m}，單位重：{uw}kN/m3，凝聚力：{coh}kPa，摩擦角：{fa}°，強度：{strength}kPa\n{msg}"
 
 @mcp.tool()
@@ -282,6 +287,84 @@ def query_idf_curve(
     """
     result = idf_curve_query(location, return_period, duration)
     return result
+
+# --- 支援清單查詢 API ---
+@mcp.tool()
+def list_supported_materials() -> list:
+    """
+    回傳所有支援的常用材料設計參數材料名稱清單。
+    """
+    return get_supported_materials()
+
+@mcp.tool()
+def list_supported_manning_materials() -> list:
+    """
+    回傳所有支援的曼寧係數材料名稱清單。
+    """
+    return get_manning_materials_list()
+
+@mcp.tool()
+def list_supported_max_velocity_materials() -> list:
+    """
+    回傳所有支援的最大容許流速材料名稱清單。
+    """
+    return get_max_velocity_materials_list()
+
+@mcp.tool()
+def list_supported_regions() -> list:
+    """
+    回傳所有支援的地區名稱清單（R 因子/降雨/IDF/年雨量等）。
+    """
+    return get_supported_regions()
+
+@mcp.tool()
+def list_supported_soil_types() -> list:
+    """
+    回傳所有支援的土壤類型清單（K 因子/土壤參數/滲透係數等）。
+    """
+    return get_supported_soil_types()
+
+@mcp.tool()
+def list_supported_land_uses() -> list:
+    """
+    回傳所有支援的土地利用型態清單（C 因子/逕流係數等）。
+    """
+    return get_supported_land_uses()
+
+@mcp.tool()
+def list_supported_practices() -> list:
+    """
+    回傳所有支援的水保措施清單（P 因子）。
+    """
+    return get_supported_practices()
+
+@mcp.tool()
+def list_supported_runoff_land_uses() -> list:
+    """
+    回傳所有支援的土地利用型態清單（逕流係數）。
+    """
+    return get_supported_runoff_land_uses()
+
+@mcp.tool()
+def list_supported_slope_protection_methods() -> list:
+    """
+    回傳所有支援的坡面保護工法建議清單。
+    """
+    return get_supported_slope_protection_methods()
+
+@mcp.tool()
+def list_supported_soil_k_types() -> list:
+    """
+    回傳所有支援的土壤滲透係數土壤類型清單。
+    """
+    return get_supported_soil_k_types()
+
+@mcp.tool()
+def list_supported_idf_locations() -> list:
+    """
+    回傳所有支援的IDF曲線地點清單。
+    """
+    return get_supported_idf_locations()
 
 # 提供 ASGI 應用給 uvicorn 啟動 HTTP 服務
 app = mcp.sse_app()  # 讓 uvicorn 可以直接啟動 HTTP 伺服器
