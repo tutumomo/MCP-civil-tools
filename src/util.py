@@ -465,10 +465,9 @@ def retaining_wall_stability_check(height: float, thickness: float, unit_weight:
     # 3. 滑動檢核
     W = γ * B * H  # 牆重（假設單位長度，僅牆體）
     F_slide = (W * math.tan(φ_rad) + c * B) / P_a if P_a > 0 else float('inf')
-    # 4. 傾倒檢核
-    e = B/2 - (P_a * H/3) / W  # 牆底壓力中心偏移
-    M_r = W * (B/2 - e)  # 抗傾倒力矩
-    M_o = P_a * H/3  # 傾倒力矩
+    # 4. 傾倒檢核（修正）
+    M_r = W * (B/2)  # 牆重對趾部的抗傾倒力矩
+    M_o = P_a * H/3  # 主動土壓力對趾部的傾倒力矩
     F_overturn = M_r / M_o if M_o > 0 else float('inf')
     # 5. 承載力檢核
     q_max = W / B + P_a * H/3 / B  # 牆趾最大壓力

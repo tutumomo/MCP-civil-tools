@@ -134,6 +134,7 @@ C:\TOMO\MCP-civil-tools\.venv\Scripts\python.exe C:\TOMO\MCP-civil-tools\src\mcp
 ```
 輸入：全面密草生的曼寧係數?
 回傳：全面密草生 的曼寧係數 n = 0.040，最大容許流速範圍：1.5~2.5 m/s
+混凝土的曼寧係數?
 ```
 
 ### 主動土壓力係數計算
@@ -287,7 +288,7 @@ C:\TOMO\MCP-civil-tools\.venv\Scripts\python.exe C:\TOMO\MCP-civil-tools\src\mcp
 查詢：有哪些常用材料？
 回傳：['一般黏土', '砂土', '礫石', '混凝土', ...]
 
-查詢：有哪些曼寧係數材料？
+查詢：可以查詢哪些水溝鋪面的曼寧係數？
 回傳：['純細砂', '混凝土', '全面密草生', ...]
 
 查詢：有哪些坡面保護工法？
@@ -309,6 +310,7 @@ C:\TOMO\MCP-civil-tools\.venv\Scripts\python.exe C:\TOMO\MCP-civil-tools\src\mcp
 - 有一集水區面積約5ha，農業區，新北市，重現期50年，降雨延時60min，該集水區最大逕流量?
 - 依據這個逕流量，設計一條寬50cm，深70cm的混凝土溝，設計坡度容許範圍? 
 - 依據這個逕流量，設計一條寬50cm，溝深60cm的混凝土溝，坡度2.5%，檢核該設計是否OK，並出具一份完整的檢核報告書。 
+- 有一個破碎岩盤的坡面，角度約60度，位於熱帶多雨地區，請提出坡面保護建議。
 
 ---
 
