@@ -716,12 +716,13 @@ IDF_COEFF = {
     '台中市': {'a': 700, 'b': 15, 'n': 0.68},
 }
 
-def idf_curve_query(location: str, return_period: float, duration: float):
+def idf_curve_query(location: str, return_period: float, duration: float, P: float = None):
     """
-    降雨強度-歷時-頻率（IDF）曲線查詢（支援地區/重現期/歷時查表與推估）。
+    降雨強度-歷時-頻率（IDF）曲線查詢（支援地區/重現期/歷時查表與推估，並可依P自動推估A、B、C、G、H）。
     location: 地區名稱
     return_period: 重現期（年）
     duration: 歷時（分鐘）
+    P: 年平均降雨量（mm，可選，若有則依規範公式自動推估I值）
     """
     loc = location
     rp = int(round(return_period))
@@ -729,22 +730,34 @@ def idf_curve_query(location: str, return_period: float, duration: float):
     # 1. 查表
     intensity = None
     src = ""
+    detail = ""
     if loc in IDF_TABLE and rp in IDF_TABLE[loc]:
         # 找最接近的歷時
         durations = sorted(IDF_TABLE[loc][rp].keys())
         closest = min(durations, key=lambda x: abs(x-dur))
         intensity = IDF_TABLE[loc][rp][closest]
         src = f"依據IDF查表({loc}, {rp}年, {closest}分)"
-    # 2. 若無查表，採經驗公式
+    # 2. 若無查表，優先依P用規範公式
+    if intensity is None and P is not None:
+        I, coeffs = calc_rainfall_intensity_by_spec(P, return_period, duration)
+        intensity = I
+        src = f"依據規範公式(P={P}, T={return_period}, t={duration})"
+        detail = (
+            f"A={coeffs['A']:.3f}, B={coeffs['B']}, C={coeffs['C']:.3f}, G={coeffs['G']:.3f}, H={coeffs['H']:.3f}\n"
+            f"I = (G + H * ln(T)) ^ (A / (t + B)^C)"
+        )
+    # 3. 若無P則用經驗公式
     if intensity is None:
         coeff = IDF_COEFF.get(loc, IDF_COEFF['default'])
         a, b, n = coeff['a'], coeff['b'], coeff['n']
         intensity = a / ((dur + b) ** n)
         src = f"依據經驗公式I=a/(t+b)^n，a={a},b={b},n={n}"
+        detail = "I = a / (t + b)^n\nt 為歷時（分鐘）"
     msg = (
         f"IDF曲線查詢：地區={loc}，重現期={rp}年，歷時={dur}分鐘\n"
         f"降雨強度={intensity:.1f} mm/hr（{src}）\n"
-        f"依據《水土保持技術規範》與各地IDF曲線，若無查表資料則採經驗公式推估。"
+        f"{detail}"
+        f"依據《水土保持技術規範》與各地IDF曲線，若無查表資料則採規範公式或經驗公式推估。"
     )
     return {
         'location': loc,
