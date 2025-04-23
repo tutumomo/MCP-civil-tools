@@ -4,7 +4,7 @@ MCP Civil Tools 伺服器
 本伺服器提供座標轉換與多種常用土木工程計算工具，供 LLM 或 MCP 客戶端調用。
 """
 from mcp.server.fastmcp import FastMCP
-from util import latlon_to_projected, projected_to_latlon, query_manning_n, active_earth_pressure_coefficient, passive_earth_pressure_coefficient, channel_flow_velocity, channel_flow_discharge, slope_stability_safety_factor, soil_erosion_modulus, catchment_peak_runoff, retaining_wall_stability_check, vegetation_slope_suggestion, material_parameter_query, idf_curve_query, SLOPE_PROTECTION_TABLE
+from util import latlon_to_projected, projected_to_latlon, query_manning_n, active_earth_pressure_coefficient, passive_earth_pressure_coefficient, channel_flow_velocity, channel_flow_discharge, slope_stability_safety_factor, soil_erosion_modulus, catchment_peak_runoff, retaining_wall_stability_check, vegetation_slope_suggestion, material_parameter_query, idf_curve_query, SLOPE_PROTECTION_TABLE, u_channel_rebar_calculation
 from utm_types import UTMResult, LatLonResult, ErrorResponse, ManningNResult, EarthPressureResult, ChannelFlowResult, VegetationSlopeSuggestion, SoilErosionResult  # 導入自訂型別
 from fastapi import Query
 # 新增支援清單查詢函式
@@ -94,28 +94,6 @@ def calc_passive_earth_pressure(phi: float) -> dict:
         f"輸入參數: {result['input_params']}\n公式: {result['formula']}\n計算過程: {result['calculation_steps']}"
     )
     return {"success": True, "data": result, "message": msg}
-
-@mcp.tool()
-def calc_channel_flow_velocity(n: float, r: float, s: float, material: str = None) -> dict:
-    """
-    曼寧公式計算排水溝流速（n: 曼寧係數, r: 水力半徑(m), s: 坡度, material: 材料名稱，可自動檢核流速）。
-    """
-    result = channel_flow_velocity(n, r, s, material)
-    msg = (
-        f"流速 v = {result['velocity']:.4f} m/s"
-        f"{f'\n{result["warning"]}' if result['warning'] else ''}\n"
-        f"依據: {result['regulation']}\n說明: {result['explanation']}\n"
-        f"輸入參數: {result['input_params']}\n公式: {result['formula']}\n計算過程: {result['calculation_steps']}"
-    )
-    return {"success": True, "data": result, "message": msg}
-
-@mcp.tool()
-def calc_channel_flow_discharge(v: float, a: float) -> dict:
-    """
-    計算排水溝流量（v: 流速(m/s), a: 斷面積(m2)）。
-    """
-    q = channel_flow_discharge(v, a)
-    return {"success": True, "data": {"Q": q}, "message": f"流量 Q = {q:.4f} cms"}
 
 @mcp.tool()
 def calc_slope_stability(slope: float, unit_weight: float, friction_angle: float, cohesion: float, water_table: float = 0, method: str = "簡化法") -> dict:
@@ -450,6 +428,261 @@ def list_supported_idf_locations() -> dict:
     回傳：地點名稱清單（如 ['台北市', '新北市', ...]）
     """
     return {"success": True, "data": get_supported_idf_locations(), "message": ""}
+
+# 新增：多斷面排水流速/流深/流量計算工具
+@mcp.tool()
+def calc_channel_section_flow(
+    cross_section_type: str,
+    flow: float,
+    slope: float,
+    manning_n: float,
+    material: str = None,
+    diameter: float = None,
+    rect_width: float = None,
+    rect_height: float = None,
+    trap_bottom: float = None,
+    trap_top: float = None,
+    trap_height: float = None
+) -> dict:
+    """
+    排水斷面流速/流深/流量計算（支援圓形、矩形、梯形，含流速檢核與完整報告）。
+    參數：
+      - cross_section_type: 斷面型式（圓形、矩形、梯形）
+      - flow: 流量 Q (cms)
+      - slope: 坡度 (%)
+      - manning_n: 曼寧係數
+      - material: 渠道材質（可選，檢核流速）
+      - diameter: 管徑 (cm, 圓形用)
+      - rect_width: 底寬 (cm, 矩形/梯形用)
+      - rect_height: 高度 (cm, 矩形用)
+      - trap_bottom: 底寬 (cm, 梯形用)
+      - trap_top: 頂寬 (cm, 梯形用)
+      - trap_height: 高度 (cm, 梯形用)
+    回傳：dict，含 success, data, message, report（繁體中文完整報告書）
+    """
+    import math
+    from math import sin, acos, sqrt
+    # 單位轉換
+    S = slope / 100
+    n = manning_n
+    Q = flow
+    V = y = area = perimeter = R = None
+    formula = ""
+    calc_steps = ""
+    section_desc = ""
+    # 計算
+    try:
+        if cross_section_type == "圓形":
+            if not diameter:
+                return {"success": False, "message": "請輸入管徑 (cm)", "report": ""}
+            D = diameter / 100
+            epsilon = 1e-6
+            y_low, y_high = 0.0001, D - epsilon
+            y = (y_low + y_high) / 2
+            for _ in range(100):
+                theta = 2 * acos(1 - 2 * y / D)
+                area = (D ** 2 / 8) * (theta - sin(theta))
+                perimeter = (D / 2) * theta
+                R = area / perimeter
+                V = (1 / n) * (R ** (2 / 3)) * (S ** 0.5)
+                Q_cal = area * V
+                if abs(Q_cal - Q) < 1e-7:
+                    break
+                if Q_cal < Q:
+                    y_low = y
+                else:
+                    y_high = y
+                y = (y_low + y_high) / 2
+            section_desc = f"圓形管徑 D={D*100:.1f}cm"
+            formula = "Q = A × V, V = (1/n) × R^(2/3) × S^(1/2)"
+            calc_steps = f"θ = 2×arccos(1-2y/D), A = (D²/8)(θ-sinθ), P = (D/2)θ, R = A/P, V = (1/n)R^(2/3)S^(1/2), Q = A×V"
+        elif cross_section_type == "矩形":
+            if not rect_width or not rect_height:
+                return {"success": False, "message": "請輸入底寬與高度 (cm)", "report": ""}
+            b = rect_width / 100
+            h = rect_height / 100
+            epsilon = 1e-6
+            y_low, y_high = 0.0001, h - epsilon
+            y = (y_low + y_high) / 2
+            for _ in range(100):
+                area = b * y
+                perimeter = b + 2 * y
+                R = area / perimeter
+                V = (1 / n) * (R ** (2 / 3)) * (S ** 0.5)
+                Q_cal = area * V
+                if abs(Q_cal - Q) < 1e-7:
+                    break
+                if Q_cal < Q:
+                    y_low = y
+                else:
+                    y_high = y
+                y = (y_low + y_high) / 2
+            section_desc = f"矩形底寬 b={b*100:.1f}cm, 高度 h={h*100:.1f}cm"
+            formula = "Q = A × V, V = (1/n) × R^(2/3) × S^(1/2)"
+            calc_steps = f"A = b×y, P = b+2y, R = A/P, V = (1/n)R^(2/3)S^(1/2), Q = A×V"
+        elif cross_section_type == "梯形":
+            if not trap_bottom or not trap_top or not trap_height:
+                return {"success": False, "message": "請輸入底寬、頂寬、高度 (cm)", "report": ""}
+            b1 = trap_bottom / 100
+            b2 = trap_top / 100
+            h = trap_height / 100
+            epsilon = 1e-6
+            y_low, y_high = 0.0001, h - epsilon
+            y = (y_low + y_high) / 2
+            for _ in range(100):
+                area = (b1 + b2) * y / 2
+                side = sqrt(y**2 + ((b2 - b1) / 2) ** 2)
+                perimeter = b2 + 2 * side
+                R = area / perimeter
+                V = (1 / n) * (R ** (2 / 3)) * (S ** 0.5)
+                Q_cal = area * V
+                if abs(Q_cal - Q) < 1e-7:
+                    break
+                if Q_cal < Q:
+                    y_low = y
+                else:
+                    y_high = y
+                y = (y_low + y_high) / 2
+            section_desc = f"梯形底寬 b1={b1*100:.1f}cm, 頂寬 b2={b2*100:.1f}cm, 高度 h={h*100:.1f}cm"
+            formula = "Q = A × V, V = (1/n) × R^(2/3) × S^(1/2)"
+            calc_steps = f"A = (b1+b2)×y/2, P = b2+2×√(y²+((b2-b1)/2)²), R = A/P, V = (1/n)R^(2/3)S^(1/2), Q = A×V"
+        else:
+            return {"success": False, "message": "不支援的斷面型式，請選擇圓形、矩形或梯形。", "report": ""}
+        # 流速限制檢核
+        check_msg = ""
+        min_safe = max_safe = None
+        if material:
+            from util import get_max_velocity
+            v_range = get_max_velocity(material)
+            if v_range:
+                min_safe, max_safe = v_range
+                if V < min_safe:
+                    check_msg = f"【檢核警告】計算流速 {V:.3f} m/s 低於安全下限 {min_safe:.2f} m/s，可能導致泥砂淤積。"
+                elif V > max_safe:
+                    check_msg = f"【檢核警告】計算流速 {V:.3f} m/s 超過安全上限 {max_safe:.2f} m/s，請考慮設置消能設施。"
+                else:
+                    check_msg = "計算結果符合安全流速規範。"
+            else:
+                check_msg = "無法取得該材質對應的流速限制。"
+        # 滿流警告
+        full_flow_warning = ""
+        rel_tol = 1e-3
+        if cross_section_type == "圓形":
+            if (D - y) / D < rel_tol:
+                full_flow_warning = "【檢核警告】計算流深已接近管徑，可能表示管道已滿流。"
+        elif cross_section_type == "矩形":
+            if (h - y) / h < rel_tol:
+                full_flow_warning = "【檢核警告】計算流深已接近通道設計高度，可能表示通道已滿流。"
+        elif cross_section_type == "梯形":
+            if (h - y) / h < rel_tol:
+                full_flow_warning = "【檢核警告】計算流深已接近通道設計高度，可能表示通道已滿流。"
+        # 報告書
+        report = (
+            f"【排水斷面流速/流深/流量計算報告】\n"
+            f"斷面型式：{cross_section_type}\n{section_desc}\n"
+            f"流量 Q = {Q:.3f} cms\n坡度 S = {slope:.3f}%\n曼寧係數 n = {n:.3f}\n"
+            f"{f'渠道材質：{material}' if material else ''}\n"
+            f"\n【計算公式】\n{formula}\n【計算步驟】\n{calc_steps}\n"
+            f"\n【計算結果】\n流速 V = {V:.3f} m/s\n流深 y = {y:.3f} m\n斷面積 A = {area:.4f} m²\n水力半徑 R = {R:.4f} m\n周長 P = {perimeter:.4f} m\n"
+            f"\n{check_msg}\n{full_flow_warning}"
+        )
+        msg = f"流速: {V:.3f} m/s，流深: {y:.3f} m。{check_msg}"
+        return {
+            "success": True,
+            "data": {
+                "velocity": V,
+                "flow_depth": y,
+                "area": area,
+                "perimeter": perimeter,
+                "hydraulic_radius": R,
+                "section_desc": section_desc,
+                "check_msg": check_msg,
+                "full_flow_warning": full_flow_warning
+            },
+            "message": msg,
+            "report": report
+        }
+    except Exception as e:
+        return {"success": False, "message": f"計算錯誤: {str(e)}", "report": ""}
+
+@mcp.tool()
+def check_gabion_stability(
+    height: float,
+    width: float,
+    wall_weight: float,
+    phi: float,
+    delta: float,
+    theta: float = 0,
+    i: float = 0,
+    gamma: float = 18,
+    friction_coef: float = 0.5,
+    pressure_mode: str = "active"
+) -> dict:
+    """
+    土石籠擋土牆穩定分析（主動/被動土壓力）。
+    參數：
+      - height: 土石籠高度 (m)
+      - width: 土石籠寬度 (m)
+      - wall_weight: 擋土牆總重 (kN/m)
+      - phi: 土壤內摩擦角 (°)
+      - delta: 牆背摩擦角 (°)
+      - theta: 牆背傾斜角 (°)，預設 0
+      - i: 地表傾斜角 (°)，預設 0
+      - gamma: 土壤飽和單位重 (kN/m³)，預設 18
+      - friction_coef: 摩擦係數，預設 0.5
+      - pressure_mode: 土壓力模式 ("active" 或 "passive")，預設 "active"
+    回傳：dict，含 success, data, message, report（繁體中文完整報告書）
+    """
+    result = gabion_stability_check(
+        height=height,
+        width=width,
+        wall_weight=wall_weight,
+        phi=phi,
+        delta=delta,
+        theta=theta,
+        i=i,
+        gamma=gamma,
+        friction_coef=friction_coef,
+        pressure_mode=pressure_mode
+    )
+    return result
+
+@mcp.tool()
+def calc_u_channel_rebar(
+    height: float,
+    wall_slope: float,
+    soil_slope: float,
+    soil_angle: float,
+    effective_depth: float,
+    soil_weight: float = 18.0
+) -> dict:
+    """
+    U型溝鋼筋量計算
+    參數：
+      - height: 溝高 (m)
+      - wall_slope: 溝壁傾角 (m)
+      - soil_slope: 土方傾角 (°)
+      - soil_angle: 安息角 (°)
+      - effective_depth: 有效厚度 (m)
+      - soil_weight: 土重 (kN/m³)，預設 18.0
+    回傳：dict，含計算結果與報告書
+    """
+    try:
+        result = u_channel_rebar_calculation(
+            height=height,
+            wall_slope=wall_slope,
+            soil_slope=soil_slope,
+            soil_angle=soil_angle,
+            effective_depth=effective_depth,
+            soil_weight=soil_weight
+        )
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"計算過程中發生錯誤: {str(e)}",
+            "report": f"【U型溝鋼筋量計算報告】\n\n計算過程中發生錯誤: {str(e)}\n請檢查輸入參數是否正確。"
+        }
 
 # 提供 ASGI 應用給 uvicorn 啟動 HTTP 服務
 app = mcp.sse_app()  # 讓 uvicorn 可以直接啟動 HTTP 伺服器

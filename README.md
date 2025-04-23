@@ -157,30 +157,37 @@ C:\TOMO\MCP-civil-tools\.venv\Scripts\python.exe C:\TOMO\MCP-civil-tools\src\mcp
 回傳：被動土壓力係數 Kp = 3.0
 ```
 
-### 排水溝流速計算（曼寧公式，含自動檢核）
-- 輸入：n（曼寧係數）、r（水力半徑 m）、s（坡度），可選 material（材料名稱）
-- 回傳：流速 v (m/s)，若超過最大容許流速會自動給出警告
+### 排水斷面流速/流深/流量計算（多斷面支援）
+- 輸入：
+  - cross_section_type（斷面型式：圓形、矩形、梯形）
+  - flow（流量 Q, cms）
+  - slope（坡度 %）
+  - manning_n（曼寧係數）
+  - material（渠道材質，可選，檢核流速）
+  - diameter（管徑 cm，圓形用）
+  - rect_width（底寬 cm，矩形/梯形用）
+  - rect_height（高度 cm，矩形用）
+  - trap_bottom（底寬 cm，梯形用）
+  - trap_top（頂寬 cm，梯形用）
+  - trap_height（高度 cm，梯形用）
+- 回傳：dict，含 success, data, message, report（繁體中文完整報告書，含輸入參數、公式、步驟、檢核、結果）
 
 #### 範例
 ```
-輸入：n=0.040, r=0.5, s=0.01, material="全面密草生"
-回傳：流速 v = 1.3702 m/s
-
-（若超過最大容許流速）
-輸入：n=0.012, r=0.5, s=0.05, material="混凝土"
-回傳：流速 v = 6.6000 m/s
-警告：計算流速 v = 6.6000 m/s 已超過『混凝土』最大容許流速 6.1 m/s！
+輸入：cross_section_type="圓形", flow=0.5, slope=1.2, manning_n=0.013, material="混凝土", diameter=60
+回傳：
+{
+  "success": true,
+  "data": {
+    "velocity": 2.12,
+    "flow_depth": 0.28,
+    ...
+  },
+  "message": "流速: 2.12 m/s，流深: 0.28 m。計算結果符合安全流速規範。",
+  "report": "【排水斷面流速/流深/流量計算報告】\n斷面型式：圓形\n圓形管徑 D=60.0cm\n流量 Q = 0.500 cms...（略）"
+}
 ```
-
-### 排水溝流量計算
-- 輸入：v（流速 m/s）、a（斷面積 m2），計算排水溝流量
-- 回傳：流量 Q (cms)
-
-#### 範例
-```
-輸入：v=2.0, a=0.8，計算排水溝流量
-回傳：流量 Q = 1.6000 cms
-```
+- 報告內容包含：輸入參數、計算公式、步驟、流速檢核、滿流警告、詳細結果。
 
 ### 邊坡穩定安全係數計算
 - 輸入：坡度、單位重、摩擦角、凝聚力、地下水位、方法
@@ -305,6 +312,112 @@ C:\TOMO\MCP-civil-tools\.venv\Scripts\python.exe C:\TOMO\MCP-civil-tools\src\mcp
 輸入：查詢不存在的材料名稱
 回傳：查無此材料，支援查詢的材料有：一般黏土, 砂土, 礫石, 混凝土, ...
 ```
+## 土石籠擋土牆穩定分析
+
+此功能用於分析土石籠擋土牆的穩定性，包括主動和被動土壓力計算。
+
+### 使用方法
+
+```python
+result = check_gabion_stability(
+    height=3.0,          # 土石籠高度 (m)
+    width=2.0,           # 土石籠寬度 (m)
+    wall_weight=100,     # 擋土牆總重 (kN/m)
+    phi=30,              # 土壤內摩擦角 (°)
+    delta=20,            # 牆背摩擦角 (°)，預設 0
+    theta=0,             # 牆背傾斜角 (°)，預設 0
+    i=0,                 # 地表傾斜角 (°)，預設 0
+    gamma=18,            # 土壤飽和單位重 (kN/m³)，預設 18
+    friction_coef=0.5,   # 摩擦係數，預設 0.5
+    pressure_mode="active"  # 土壓力模式 ("active" 或 "passive")，預設 "active"
+)
+```
+
+### 回傳結果
+
+函數回傳一個字典，包含以下內容：
+
+- `success`: 布林值，表示計算是否成功
+- `data`: 計算結果數據，包含：
+  - `earth_pressure_coef`: 土壓力係數
+  - `total_pressure`: 總土壓力 (kN/m)
+  - `vertical_force`: 垂直力分量 (kN/m)
+  - `horizontal_force`: 水平力分量 (kN/m)
+  - `restoring_moment`: 抗傾覆力矩 (kN·m/m)
+  - `overturning_moment`: 傾覆力矩 (kN·m/m)
+  - `overturning_safety_factor`: 抗傾覆安全係數
+  - `sliding_safety_factor`: 抗滑動安全係數
+- `message`: 計算結果摘要
+- `report`: 完整的計算報告書（Markdown 格式）
+
+### 計算報告書內容
+
+報告書包含以下章節：
+
+1. 輸入參數
+2. 計算公式
+3. 計算結果
+4. 穩定評估
+
+### U型溝鋼筋量計算
+- 輸入：
+  - height: 溝高 (m)
+  - wall_slope: 溝壁傾角 (m)
+  - soil_slope: 土方傾角 (°)
+  - soil_angle: 安息角 (°)
+  - effective_depth: 有效厚度 (m)
+  - soil_weight: 土重 (kN/m³)，預設 18.0
+- 回傳：dict，含計算結果與報告書
+
+#### 範例
+```
+輸入：混凝土溝，height=1.5, wall_slope=0.5, soil_slope=15, soil_angle=30, effective_depth=0.2，計算水溝的配筋?
+回傳：
+{
+  "success": true,
+  "data": {
+    "earth_pressure_coef": 0.3333,
+    "earth_pressure": 6.750,
+    "moment": 3.375,
+    "rebar_area": 13.780
+  },
+  "message": "土壓力係數 Ka = 0.3333, 土壓力 P = 6.750 kN/m, 彎矩 M = 3.375 kN·m/m, 鋼筋量 As = 13.780 cm²/m",
+  "report": "【U型溝鋼筋量計算報告】\n\n輸入參數：\n- 溝高 H = 1.500 m\n- 溝壁傾角 m = 0.500\n- 土方傾角 i = 15.00°\n- 安息角 ψ = 30.00°\n- 有效厚度 d = 0.200 m\n- 土重 γ = 18.0 kN/m³\n\n計算公式：\n1. 土壓力係數 Ka = cos²(ψ+m) / [cos²m·(1+√Q)²]\n   其中 Q = [sinψ·sin(ψ-i)] / [cos(m+i)·cosm]\n2. 土壓力 P = γ·H²·Ka / (2·cosm)\n3. 彎矩 M = γ·H³·Ka / (6·cosm)\n4. 鋼筋量 As = M / (fs·d) × 10⁶ / 1000\n\n計算結果：\n- 土壓力係數 Ka = 0.3333\n- 土壓力 P = 6.750 kN/m\n- 彎矩 M = 3.375 kN·m/m\n- 鋼筋量 As = 13.780 cm²/m"
+}
+```
+
+## 鋼筋查詢功能
+
+### 鋼筋規格查詢
+輸入「鋼筋規格 #3」或「鋼筋資料 #3」可查詢特定鋼筋的詳細資料，包括：
+- 鋼筋編號
+- 直徑 (mm)
+- 截面積 (cm²)
+- 單位重量 (kg/m)
+- 周長 (mm)
+
+### 鋼筋重量計算
+輸入「鋼筋重量 長度 6 #3」可計算指定長度的鋼筋重量，例如：
+- 長度：6m
+- 鋼筋：#3
+- 重量：2.04 kg
+
+### 鋼筋截面積查詢
+輸入「鋼筋截面積 #3」可查詢特定鋼筋的截面積，例如：
+- #3 鋼筋截面積：0.71 cm²
+
+### 所有鋼筋列表
+輸入「所有鋼筋」可列出所有可用的鋼筋編號，包括：
+- #3 至 #11 鋼筋
+- 各鋼筋的基本規格
+
+### U 型溝配筋建議
+輸入「U型溝配筋 面積 10」可查詢建議的配筋方式，系統會：
+1. 根據輸入的鋼筋斷面積 (cm²/m)
+2. 自動計算並建議主筋與副筋的配筋方式
+3. 間距會取整到最接近的 5cm
+4. 提供完整的配筋建議報告
+
 
 ## 使用範例(功能導向，讓大模型自動調用相關工具來求解)
 - 有一集水區面積約5ha，農業區，新北市，重現期50年，降雨延時60min，該集水區最大逕流量?
@@ -312,6 +425,7 @@ C:\TOMO\MCP-civil-tools\.venv\Scripts\python.exe C:\TOMO\MCP-civil-tools\src\mcp
 - 依據這個逕流量，設計一條寬50cm，溝深60cm的混凝土溝，坡度2.5%，檢核該設計是否OK，並出具一份完整的檢核報告書。 
 - 有一個破碎岩盤的坡面，角度約60度，位於熱帶多雨地區，請提出坡面保護建議。
 - 無基礎的混凝土重力式擋土牆，全高2.3M，牆頂寬50cm，牆底寬100cm，土壤單位重18kN/m3，摩擦角30度，凝聚力10kPa，地下水位在牆頂以下2M，請調用MCP工具，檢核其穩定性，並輸出完整計算報告書。
+- 混凝土溝，height=1.5, wall_slope=0.5, soil_slope=15, soil_angle=30, effective_depth=0.2，計算水溝的配筋? 
 
 ---
 

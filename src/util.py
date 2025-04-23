@@ -858,3 +858,235 @@ def slope_protection_suggestion(slope: float, soil_type: str = None, rainfall: f
     msg = f"坡度={slope}%，土壤={soil_type or '-'}，降雨={rainfall or '-'}mm，建議工法：{method}。{desc}"
     regulation = "依據《水土保持技術規範》第8、167、172條及附件坡度分級、樣區面積、覆蓋率等規定"
     return slope, soil_type, rainfall, method, f"{msg}\n{regulation}"
+
+def gabion_stability_check(
+    height: float,
+    width: float,
+    wall_weight: float,
+    phi: float,
+    delta: float,
+    theta: float,
+    i: float,
+    gamma: float,
+    friction_coef: float,
+    pressure_mode: str = "active"
+) -> dict:
+    """
+    土石籠擋土牆穩定分析（主動/被動土壓力）。
+    參數：
+      - height: 土石籠高度 (m)
+      - width: 土石籠寬度 (m)
+      - wall_weight: 擋土牆總重 (kN/m)
+      - phi: 土壤內摩擦角 (°)
+      - delta: 牆背摩擦角 (°)
+      - theta: 牆背傾斜角 (°)
+      - i: 地表傾斜角 (°)
+      - gamma: 土壤飽和單位重 (kN/m³)
+      - friction_coef: 摩擦係數
+      - pressure_mode: 土壓力模式 ("active" 或 "passive")
+    回傳：dict，含 success, data, message, report（繁體中文完整報告書）
+    """
+    import math
+    from datetime import datetime
+    
+    try:
+        # 1. 計算土壓力係數
+        phi_rad = math.radians(phi)
+        theta_rad = math.radians(theta)
+        delta_rad = math.radians(delta)
+        i_rad = math.radians(i)
+        
+        if i == 0:
+            # 簡化公式 (當地表水平時)
+            if pressure_mode == "active":
+                k = (1 - math.sin(phi_rad)) / (1 + math.sin(phi_rad))
+                formula = "Ka = (1 - sinφ) / (1 + sinφ)"
+            else:
+                k = (1 + math.sin(phi_rad)) / (1 - math.sin(phi_rad))
+                formula = "Kp = (1 + sinφ) / (1 - sinφ)"
+        else:
+            # 完整庫倫公式
+            if pressure_mode == "active":
+                numerator = math.cos(phi_rad - theta_rad)**2
+                denominator = math.cos(theta_rad)**2 * math.cos(delta_rad + theta_rad)
+                sqrt_part = math.sqrt(
+                    (math.sin(phi_rad + delta_rad) * math.sin(phi_rad - i_rad)) / 
+                    (math.cos(delta_rad + theta_rad) * math.cos(theta_rad - i_rad))
+                )
+                k = numerator / (denominator * (1 + sqrt_part)**2)
+                formula = "Ka = cos²(φ-θ) / [cos²θ·cos(δ+θ)·(1+√Q)²], Q = [sin(φ+δ)·sin(φ-i)] / [cos(δ+θ)·cos(θ-i)]"
+            else:
+                numerator = math.cos(phi_rad + theta_rad)**2
+                denominator = math.cos(theta_rad)**2 * math.cos(delta_rad - theta_rad)
+                sqrt_part = math.sqrt(
+                    (math.sin(phi_rad + delta_rad) * math.sin(phi_rad + i_rad)) / 
+                    (math.cos(delta_rad - theta_rad) * math.cos(theta_rad - i_rad))
+                )
+                k = numerator / (denominator * (1 - sqrt_part)**2)
+                formula = "Kp = cos²(φ+θ) / [cos²θ·cos(δ-θ)·(1-√Q)²], Q = [sin(φ+δ)·sin(φ+i)] / [cos(δ-θ)·cos(θ-i)]"
+        
+        # 2. 計算土壓力總和
+        pa = 0.5 * gamma * height**2 * k
+        
+        # 3. 計算分力
+        pv = pa * math.sin(delta_rad + theta_rad)
+        ph = pa * math.cos(delta_rad + theta_rad)
+        
+        # 4. 計算力矩
+        mr = wall_weight * width / 2
+        mf = ph * height / 3
+        
+        # 5. 計算安全係數
+        fs_overturning = mr / mf if mf != 0 else float('inf')
+        fs_sliding = ((wall_weight + pv) * friction_coef) / ph if ph != 0 else float('inf')
+        
+        # 穩定性評估
+        assessment = []
+        if fs_overturning >= 1.5:
+            assessment.append("抗傾覆: 安全")
+        else:
+            assessment.append("抗傾覆: 不安全!")
+        
+        if fs_sliding >= 1.5:
+            assessment.append("抗滑動: 安全")
+        else:
+            assessment.append("抗滑動: 不安全!")
+        
+        # 報告書
+        report = (
+            f"【土石籠擋土牆{pressure_mode}土壓力分析計算書】\n"
+            f"生成時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            f"## 輸入參數\n"
+            f"- 分析模式: {pressure_mode}土壓力分析\n"
+            f"- 土壤內摩擦角 φ = {phi}°\n"
+            f"- 牆背摩擦角 δ = {delta}°\n"
+            f"- 牆背傾斜角 θ = {theta}°\n"
+            f"- 地表傾斜角 i = {i}°\n"
+            f"- 土壤飽和單位重 γ = {gamma} kN/m³\n"
+            f"- 擋土牆總重 W = {wall_weight} kN/m\n"
+            f"- 土石籠高度 H = {height} m\n"
+            f"- 土石籠寬度 B = {width} m\n"
+            f"- 摩擦係數 μ = {friction_coef}\n\n"
+            f"## 計算公式\n{formula}\n\n"
+            f"## 計算結果\n"
+            f"- 土壓力係數 K{'a' if pressure_mode == 'active' else 'p'} = {k:.4f}\n"
+            f"- 土壓力總和 P{'a' if pressure_mode == 'active' else 'p'} = {pa:.2f} kN/m\n"
+            f"- 垂直分力 Pv = {pv:.2f} kN/m\n"
+            f"- 水平分力 Ph = {ph:.2f} kN/m\n"
+            f"- 扶正力矩 Mr = {mr:.2f} kN·m/m\n"
+            f"- 傾倒力矩 Mf = {mf:.2f} kN·m/m\n"
+            f"- **穩定性評估**: {' | '.join(assessment)}\n"
+        )
+        
+        msg = f"土壓力係數: {k:.4f}, 土壓力總和: {pa:.2f} kN/m, 安全係數: 抗傾覆={fs_overturning:.2f}, 抗滑動={fs_sliding:.2f}"
+        
+        return {
+            "success": True,
+            "data": {
+                "pressure_coef": k,
+                "total_pressure": pa,
+                "vertical_force": pv,
+                "horizontal_force": ph,
+                "restoring_moment": mr,
+                "overturning_moment": mf,
+                "fs_overturning": fs_overturning,
+                "fs_sliding": fs_sliding,
+                "assessment": assessment
+            },
+            "message": msg,
+            "report": report
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"計算錯誤: {str(e)}",
+            "report": ""
+        }
+
+def u_channel_rebar_calculation(
+    height: float,
+    wall_slope: float,
+    soil_slope: float,
+    soil_angle: float,
+    effective_depth: float,
+    soil_weight: float = 18.0
+) -> dict:
+    """
+    U型溝鋼筋量計算
+    參數：
+      - height: 溝高 (m)
+      - wall_slope: 溝壁傾角 (m)
+      - soil_slope: 土方傾角 (°)
+      - soil_angle: 安息角 (°)
+      - effective_depth: 有效厚度 (m)
+      - soil_weight: 土重 (kN/m³)，預設 18.0
+    回傳：dict，含計算結果與報告書
+    """
+    import math
+    
+    # 角度轉換
+    wall_slope_rad = math.atan(wall_slope)
+    soil_slope_rad = math.radians(soil_slope)
+    soil_angle_rad = math.radians(soil_angle)
+    
+    # 計算土壓力係數 Ka
+    numerator = math.sin(soil_angle_rad) * math.sin(soil_angle_rad - soil_slope_rad)
+    denominator = math.cos(wall_slope_rad + soil_slope_rad) * math.cos(wall_slope_rad)
+    
+    if numerator / denominator < 0:
+        return {
+            "success": False,
+            "message": "根據公式此資料不能計算",
+            "report": "【U型溝鋼筋量計算報告】\n\n輸入參數：\n- 溝高 H = {:.3f} m\n- 溝壁傾角 m = {:.3f}\n- 土方傾角 i = {:.2f}°\n- 安息角 ψ = {:.2f}°\n- 有效厚度 d = {:.3f} m\n- 土重 γ = {:.1f} kN/m³\n\n計算結果：\n根據公式此資料不能計算，請檢查輸入參數是否合理。"
+        }
+    
+    ka = (math.cos(soil_angle_rad + wall_slope_rad))**2 / (
+        (math.cos(wall_slope_rad))**2 * 
+        (1 + math.sqrt(numerator / denominator))**2
+    )
+    
+    # 計算土壓力 P
+    p = soil_weight * height**2 * ka / (2 * math.cos(wall_slope_rad))
+    
+    # 計算彎矩 M
+    m = soil_weight * height**3 * ka / (6 * math.cos(wall_slope_rad))
+    
+    # 計算鋼筋量 As (使用容許應力 1400 kgf/cm² * 0.875)
+    jfs = 1400 * 0.875  # kgf/cm²
+    as_rebar = m / (jfs * effective_depth) * 1000000 / 1000  # cm²
+    
+    # 生成報告書
+    report = (
+        "【U型溝鋼筋量計算報告】\n\n"
+        "輸入參數：\n"
+        f"- 溝高 H = {height:.3f} m\n"
+        f"- 溝壁傾角 m = {wall_slope:.3f}\n"
+        f"- 土方傾角 i = {soil_slope:.2f}°\n"
+        f"- 安息角 ψ = {soil_angle:.2f}°\n"
+        f"- 有效厚度 d = {effective_depth:.3f} m\n"
+        f"- 土重 γ = {soil_weight:.1f} kN/m³\n\n"
+        "計算公式：\n"
+        "1. 土壓力係數 Ka = cos²(ψ+m) / [cos²m·(1+√Q)²]\n"
+        "   其中 Q = [sinψ·sin(ψ-i)] / [cos(m+i)·cosm]\n"
+        "2. 土壓力 P = γ·H²·Ka / (2·cosm)\n"
+        "3. 彎矩 M = γ·H³·Ka / (6·cosm)\n"
+        "4. 鋼筋量 As = M / (fs·d) × 10⁶ / 1000\n\n"
+        "計算結果：\n"
+        f"- 土壓力係數 Ka = {ka:.4f}\n"
+        f"- 土壓力 P = {p:.3f} kN/m\n"
+        f"- 彎矩 M = {m:.3f} kN·m/m\n"
+        f"- 鋼筋量 As = {as_rebar:.3f} cm²/m"
+    )
+    
+    return {
+        "success": True,
+        "data": {
+            "earth_pressure_coef": ka,
+            "earth_pressure": p,
+            "moment": m,
+            "rebar_area": as_rebar
+        },
+        "message": f"土壓力係數 Ka = {ka:.4f}, 土壓力 P = {p:.3f} kN/m, 彎矩 M = {m:.3f} kN·m/m, 鋼筋量 As = {as_rebar:.3f} cm²/m",
+        "report": report
+    }
