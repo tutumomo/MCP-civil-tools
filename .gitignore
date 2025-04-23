@@ -56,4 +56,25 @@ log/
 *.temp
 .cursor/
 
+# 統一所有文字檔案使用 LF 換行符號
+* text=auto eol=lf
+
+# 針對常見副檔名明確指定使用 LF
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.txt text eol=lf
+*.csv text eol=lf
+
+# 為 shell script 確保執行不出錯
+*.sh text eol=lf
+
+# Windows 專用批次檔可保留 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+
 # （可依實際需求增減） 
