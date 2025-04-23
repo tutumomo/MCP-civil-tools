@@ -1090,3 +1090,46 @@ def u_channel_rebar_calculation(
         "message": f"土壓力係數 Ka = {ka:.4f}, 土壓力 P = {p:.3f} kN/m, 彎矩 M = {m:.3f} kN·m/m, 鋼筋量 As = {as_rebar:.3f} cm²/m",
         "report": report
     }
+
+# 鋼筋規格資料表
+REBAR_TABLE = {
+    "#3": {"diameter": 9.53, "area": 0.71, "weight": 0.559, "perimeter": 29.9, "name": "10"},
+    "#4": {"diameter": 12.7, "area": 1.27, "weight": 0.994, "perimeter": 39.9, "name": "13"},
+    "#5": {"diameter": 15.9, "area": 1.98, "weight": 1.55, "perimeter": 49.9, "name": "16"},
+    "#6": {"diameter": 19.1, "area": 2.85, "weight": 2.24, "perimeter": 60.0, "name": "19"},
+    "#7": {"diameter": 22.2, "area": 3.88, "weight": 3.05, "perimeter": 69.7, "name": "22"},
+    "#8": {"diameter": 25.4, "area": 5.07, "weight": 3.98, "perimeter": 79.8, "name": "25"},
+    "#9": {"diameter": 28.7, "area": 6.45, "weight": 5.06, "perimeter": 90.2, "name": "29"},
+    "#10": {"diameter": 32.2, "area": 8.17, "weight": 6.41, "perimeter": 101.2, "name": "32"},
+    "#11": {"diameter": 35.8, "area": 10.08, "weight": 7.91, "perimeter": 112.5, "name": "36"},
+    "#14": {"diameter": 43.0, "area": 14.52, "weight": 11.4, "perimeter": 135.1, "name": "43"},
+    "#18": {"diameter": 57.3, "area": 25.81, "weight": 20.3, "perimeter": 180.0, "name": "57"}
+}
+
+def get_rebar_info(rebar_number: str) -> dict:
+    """
+    查詢鋼筋規格資料
+    參數：
+      - rebar_number: 鋼筋編號（如 "#3"）
+    回傳：dict，含直徑、截面積、單位重量、周長
+    """
+    return REBAR_TABLE.get(rebar_number)
+
+def get_all_rebar_numbers() -> list:
+    """
+    回傳所有可用的鋼筋編號
+    """
+    return list(REBAR_TABLE.keys())
+
+def calculate_rebar_weight(rebar_number: str, length: float) -> float:
+    """
+    計算鋼筋重量
+    參數：
+      - rebar_number: 鋼筋編號（如 "#3"）
+      - length: 長度（m）
+    回傳：重量（kg）
+    """
+    rebar_info = get_rebar_info(rebar_number)
+    if rebar_info:
+        return rebar_info["weight"] * length
+    return None

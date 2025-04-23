@@ -4,7 +4,15 @@ MCP Civil Tools 伺服器
 本伺服器提供座標轉換與多種常用土木工程計算工具，供 LLM 或 MCP 客戶端調用。
 """
 from mcp.server.fastmcp import FastMCP
-from util import latlon_to_projected, projected_to_latlon, query_manning_n, active_earth_pressure_coefficient, passive_earth_pressure_coefficient, channel_flow_velocity, channel_flow_discharge, slope_stability_safety_factor, soil_erosion_modulus, catchment_peak_runoff, retaining_wall_stability_check, vegetation_slope_suggestion, material_parameter_query, idf_curve_query, SLOPE_PROTECTION_TABLE, u_channel_rebar_calculation
+from util import (
+    latlon_to_projected, projected_to_latlon, query_manning_n, 
+    active_earth_pressure_coefficient, passive_earth_pressure_coefficient, 
+    channel_flow_velocity, channel_flow_discharge, slope_stability_safety_factor, 
+    soil_erosion_modulus, catchment_peak_runoff, retaining_wall_stability_check, 
+    vegetation_slope_suggestion, material_parameter_query, idf_curve_query, 
+    SLOPE_PROTECTION_TABLE, u_channel_rebar_calculation, get_rebar_info, 
+    get_all_rebar_numbers, calculate_rebar_weight
+)
 from utm_types import UTMResult, LatLonResult, ErrorResponse, ManningNResult, EarthPressureResult, ChannelFlowResult, VegetationSlopeSuggestion, SoilErosionResult  # 導入自訂型別
 from fastapi import Query
 # 新增支援清單查詢函式
