@@ -429,24 +429,72 @@ def soil_erosion_modulus(length, slope, rainfall, region=None, soil_type=None, l
         'calculation_steps': calculation_steps
     }
 
-# Rational 公式逕流係數查表
+# 逕流係數表（依據水土保持技術規範第18條）
 RUNOFF_COEFF_TABLE = {
-    '都市': 0.8, '住宅區': 0.6, '工業區': 0.7, '道路': 0.85, '農地': 0.4, '林地': 0.2, '裸地': 0.5, '草地': 0.3,
+    '陡峻山地': {
+        'min': 0.75,
+        'max': 0.90,
+        '開發中': 0.95
+    },
+    '山麓區': {
+        'min': 0.70,
+        'max': 0.80,
+        '開發中': 0.90
+    },
+    '丘陵地或森林': {
+        'min': 0.50,
+        'max': 0.75,
+        '開發中': 0.90
+    },
+    '平坦耕地': {
+        'min': 0.45,
+        'max': 0.60,
+        '開發中': 0.85
+    },
+    '非農業使用': {
+        'min': 0.75,
+        'max': 0.95,
+        '開發中': 1.00
+    }
 }
 
-def get_supported_runoff_land_uses():
+def get_runoff_coeff(land_use, runoff_coeff=None, is_developing=False):
     """
-    回傳所有支援的土地利用型態清單（逕流係數）。
+    查詢逕流係數C值
+    land_use: 土地利用類型或集水區狀況，必須是以下之一：
+        - 陡峻山地
+        - 山麓區
+        - 丘陵地或森林
+        - 平坦耕地
+        - 非農業使用
+    runoff_coeff: 直接指定的逕流係數值
+    is_developing: 是否為開發中狀態
     """
-    return list(RUNOFF_COEFF_TABLE.keys())
-
-def get_runoff_coeff(land_use, runoff_coeff=None):
-    if land_use and land_use in RUNOFF_COEFF_TABLE:
-        return RUNOFF_COEFF_TABLE[land_use], f"依據土地利用查表({land_use})"
-    elif runoff_coeff is not None:
+    # 驗證land_use是否為有效值
+    valid_land_uses = ['陡峻山地', '山麓區', '丘陵地或森林', '平坦耕地', '非農業使用']
+    if land_use not in valid_land_uses:
+        return None, f"土地利用類型必須是以下之一：{', '.join(valid_land_uses)}"
+    
+    # 如果直接指定逕流係數，直接返回
+    if runoff_coeff is not None:
         return runoff_coeff, "由使用者輸入"
-    else:
-        return 0.5, "預設值"
+    
+    # 開發中狀態直接返回1.0
+    if is_developing:
+        return 1.0, "開發中狀態，逕流係數以1.0計算"
+    
+    # 查表並計算平均值
+    if land_use in RUNOFF_COEFF_TABLE:
+        if is_developing:
+            return RUNOFF_COEFF_TABLE[land_use]['開發中'], f"開發中狀態，{land_use}"
+        else:
+            # 計算範圍內的平均值
+            min_val = RUNOFF_COEFF_TABLE[land_use]['min']
+            max_val = RUNOFF_COEFF_TABLE[land_use]['max']
+            avg = (min_val + max_val) / 2
+            return avg, f"{land_use}逕流係數範圍：{min_val}~{max_val}，採用平均值{avg:.2f}"
+    
+    return None, f"找不到土地利用類型：{land_use}"
 
 def calc_idf_coeffs(P):
     """
@@ -479,12 +527,17 @@ def get_rainfall_intensity(region=None, rainfall_intensity=None, return_period=N
         I, coeffs = calc_rainfall_intensity_by_spec(P, return_period, duration)
         src = f"依據規範公式(P={P}, T={return_period}, t={duration})，A={coeffs['A']:.3f},B={coeffs['B']},C={coeffs['C']:.3f},G={coeffs['G']:.3f},H={coeffs['H']:.3f}"
         return I, src
-    if region and region in RAINFALL_INTENSITY_TABLE:
-        return RAINFALL_INTENSITY_TABLE[region], f"依據地區查表({region})"
     elif rainfall_intensity is not None:
         return rainfall_intensity, "由使用者輸入"
+    elif region and region in RAINFALL_INTENSITY_TABLE:
+        return RAINFALL_INTENSITY_TABLE[region], f"依據地區查表({region})"
     else:
-        return 100, "預設值"
+        # 使用經驗公式 I = a/(t+b)^n
+        coeff = IDF_COEFF.get(region, IDF_COEFF['default'])
+        a, b, n = coeff['a'], coeff['b'], coeff['n']
+        I = a / ((duration + b) ** n)
+        src = f"依據經驗公式I=a/(t+b)^n，a={a},b={b},n={n}"
+        return I, src
 
 def catchment_peak_runoff(area, rainfall_intensity=None, runoff_coeff=None, land_use=None, region=None, return_period=None, duration=None, method="Rational", P=None):
     """

@@ -11,12 +11,12 @@ from util import (
     soil_erosion_modulus, catchment_peak_runoff, retaining_wall_stability_check, 
     vegetation_slope_suggestion, material_parameter_query, idf_curve_query, 
     SLOPE_PROTECTION_TABLE, u_channel_rebar_calculation, get_rebar_info, 
-    get_all_rebar_numbers, calculate_rebar_weight
+    get_all_rebar_numbers, calculate_rebar_weight, get_runoff_coeff, RUNOFF_COEFF_TABLE
 )
 from utm_types import UTMResult, LatLonResult, ErrorResponse, ManningNResult, EarthPressureResult, ChannelFlowResult, VegetationSlopeSuggestion, SoilErosionResult  # 導入自訂型別
 from fastapi import Query
 # 新增支援清單查詢函式
-from util import get_manning_materials_list, get_max_velocity_materials_list, get_supported_materials, get_supported_regions, get_supported_soil_types, get_supported_land_uses, get_supported_practices, get_supported_runoff_land_uses, get_supported_slope_protection_methods, get_supported_soil_k_types, get_supported_idf_locations
+from util import get_manning_materials_list, get_max_velocity_materials_list, get_supported_materials, get_supported_regions, get_supported_soil_types, get_supported_land_uses, get_supported_practices, get_supported_slope_protection_methods, get_supported_soil_k_types, get_supported_idf_locations
 
 # 建立 MCP 伺服器
 mcp = FastMCP("MCP Civil Tools")
@@ -402,7 +402,7 @@ def list_supported_runoff_land_uses() -> dict:
     - 請列出可以查逕流係數的土地利用
     回傳：土地利用型態清單（如 ['農業區', '都市區', ...]）
     """
-    return {"success": True, "data": get_supported_runoff_land_uses(), "message": ""}
+    return {"success": True, "data": get_supported_land_uses(), "message": ""}
 
 @mcp.tool()
 def list_supported_slope_protection_methods() -> dict:
@@ -770,6 +770,77 @@ def calculate_rebar_weight(rebar_number: str, length: float) -> dict:
             "success": False,
             "message": f"計算失敗：{str(e)}"
         }
+
+@mcp.tool()
+def query_runoff_coeff(
+    land_use: str = None,
+    runoff_coeff: float = None,
+    is_developing: bool = False
+) -> dict:
+    """
+    逕流係數C值查詢工具（依據水土保持技術規範第18條）。
+    參數：
+      - land_use: 土地利用類型或集水區狀況，必須是以下之一：
+          - 陡峻山地
+          - 山麓區
+          - 丘陵地或森林
+          - 平坦耕地
+          - 非農業使用
+      - runoff_coeff: 直接指定的逕流係數值
+      - is_developing: 是否為開發中狀態
+    回傳：dict，含逕流係數值、來源說明、規範依據等
+    """
+    # 驗證必要參數
+    if land_use is None and runoff_coeff is None:
+        return {
+            "success": False,
+            "data": None,
+            "message": "請提供土地利用類型(land_use)或直接指定逕流係數(runoff_coeff)"
+        }
+    
+    # 查詢逕流係數
+    C, C_src = get_runoff_coeff(land_use, runoff_coeff, is_developing)
+    
+    if C is None:
+        return {
+            "success": False,
+            "data": None,
+            "message": f"錯誤：{C_src}"
+        }
+    
+    # 準備回傳資料
+    result = {
+        'runoff_coeff': C,
+        'source': C_src,
+        'land_use': land_use,
+        'is_developing': is_developing,
+        'regulation': "依據《水土保持技術規範》第18條及附件逕流係數表",
+        'explanation': "逕流係數C值反映集水區地表特性對降雨逕流之影響，開發中狀態C值以1.0計算。",
+        'input_params': {
+            'land_use': land_use,
+            'runoff_coeff': runoff_coeff,
+            'is_developing': is_developing
+        }
+    }
+    
+    # 如果有指定土地利用類型，提供更多資訊
+    if land_use in RUNOFF_COEFF_TABLE:
+        if isinstance(RUNOFF_COEFF_TABLE[land_use], dict):
+            result['min_value'] = RUNOFF_COEFF_TABLE[land_use]['min']
+            result['max_value'] = RUNOFF_COEFF_TABLE[land_use]['max']
+            result['developing_value'] = RUNOFF_COEFF_TABLE[land_use]['開發中']
+            result['value_range'] = f"{RUNOFF_COEFF_TABLE[land_use]['min']} - {RUNOFF_COEFF_TABLE[land_use]['max']}"
+        else:
+            result['value'] = RUNOFF_COEFF_TABLE[land_use]
+    
+    msg = (
+        f"逕流係數 C = {C:.2f}\n"
+        f"來源：{C_src}\n"
+        f"依據：{result['regulation']}\n"
+        f"說明：{result['explanation']}"
+    )
+    
+    return {"success": True, "data": result, "message": msg}
 
 # 提供 ASGI 應用給 uvicorn 啟動 HTTP 服務
 app = mcp.sse_app()  # 讓 uvicorn 可以直接啟動 HTTP 伺服器
