@@ -455,6 +455,11 @@ RUNOFF_COEFF_TABLE = {
         'min': 0.75,
         'max': 0.95,
         '開發中': 1.00
+    },
+    '農業區': {
+        'min': 0.45,
+        'max': 0.60,
+        '開發中': 0.85
     }
 }
 
@@ -471,7 +476,7 @@ def get_runoff_coeff(land_use, runoff_coeff=None, is_developing=False):
     is_developing: 是否為開發中狀態
     """
     # 驗證land_use是否為有效值
-    valid_land_uses = ['陡峻山地', '山麓區', '丘陵地或森林', '平坦耕地', '非農業使用']
+    valid_land_uses = ['陡峻山地', '山麓區', '丘陵地或森林', '平坦耕地', '非農業使用', '農業區']
     if land_use not in valid_land_uses:
         return None, f"土地利用類型必須是以下之一：{', '.join(valid_land_uses)}"
     
