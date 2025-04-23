@@ -684,6 +684,85 @@ def calc_u_channel_rebar(
             "report": f"【U型溝鋼筋量計算報告】\n\n計算過程中發生錯誤: {str(e)}\n請檢查輸入參數是否正確。"
         }
 
+@mcp.tool()
+def list_rebar_numbers() -> dict:
+    """
+    列出所有可用的鋼筋編號及其規格資料
+    回傳：dict，含 success, data, message
+    """
+    try:
+        rebar_numbers = get_all_rebar_numbers()
+        rebar_data = {}
+        for number in rebar_numbers:
+            info = get_rebar_info(number)
+            if info:
+                rebar_data[number] = info
+        return {
+            "success": True,
+            "data": rebar_data,
+            "message": f"可用的鋼筋編號：{', '.join(rebar_numbers)}"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"查詢失敗：{str(e)}"
+        }
+
+@mcp.tool()
+def get_rebar_specs(rebar_number: str) -> dict:
+    """
+    查詢鋼筋規格資料
+    參數：
+      - rebar_number: 鋼筋編號（如 "#3"）
+    回傳：dict，含 success, data, message
+    """
+    try:
+        rebar_info = get_rebar_info(rebar_number)
+        if rebar_info:
+            return {
+                "success": True,
+                "data": rebar_info,
+                "message": f"鋼筋 {rebar_number} 規格：直徑 {rebar_info['diameter']}mm，截面積 {rebar_info['area']}cm²，單位重量 {rebar_info['weight']}kg/m，周長 {rebar_info['perimeter']}mm"
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"找不到鋼筋編號 {rebar_number}，可用的鋼筋編號：{', '.join(get_all_rebar_numbers())}"
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"查詢失敗：{str(e)}"
+        }
+
+@mcp.tool()
+def calculate_rebar_weight(rebar_number: str, length: float) -> dict:
+    """
+    計算鋼筋重量
+    參數：
+      - rebar_number: 鋼筋編號（如 "#3"）
+      - length: 長度（m）
+    回傳：dict，含 success, data, message
+    """
+    try:
+        weight = calculate_rebar_weight(rebar_number, length)
+        if weight is not None:
+            return {
+                "success": True,
+                "data": {"weight": weight},
+                "message": f"鋼筋 {rebar_number} 長度 {length}m 的重量為 {weight:.2f}kg"
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"找不到鋼筋編號 {rebar_number}，可用的鋼筋編號：{', '.join(get_all_rebar_numbers())}"
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"計算失敗：{str(e)}"
+        }
+
 # 提供 ASGI 應用給 uvicorn 啟動 HTTP 服務
 app = mcp.sse_app()  # 讓 uvicorn 可以直接啟動 HTTP 伺服器
 
