@@ -5,13 +5,15 @@ MCP Civil Tools 伺服器
 """
 from mcp.server.fastmcp import FastMCP
 from util import (
-    latlon_to_projected, projected_to_latlon, query_manning_n, 
-    active_earth_pressure_coefficient, passive_earth_pressure_coefficient, 
-    channel_flow_velocity, channel_flow_discharge, slope_stability_safety_factor, 
-    soil_erosion_modulus, catchment_peak_runoff, retaining_wall_stability_check, 
-    vegetation_slope_suggestion, material_parameter_query, idf_curve_query, 
-    SLOPE_PROTECTION_TABLE, u_channel_rebar_calculation, get_rebar_info, 
-    get_all_rebar_numbers, calculate_rebar_weight, get_runoff_coeff, RUNOFF_COEFF_TABLE
+    latlon_to_projected, projected_to_latlon, query_manning_n,
+    active_earth_pressure_coefficient, passive_earth_pressure_coefficient,
+    channel_flow_velocity, channel_flow_discharge, slope_stability_safety_factor,
+    soil_erosion_modulus, catchment_peak_runoff, retaining_wall_stability_check,
+    vegetation_slope_suggestion, material_parameter_query, idf_curve_query,
+    SLOPE_PROTECTION_TABLE, u_channel_rebar_calculation, get_rebar_info,
+    get_all_rebar_numbers, calculate_rebar_weight, get_runoff_coeff, RUNOFF_COEFF_TABLE,
+    # 新增四個 USLE 因子查詢函數
+    query_r_factor, query_k_factor, query_c_factor, query_p_factor
 )
 from utm_types import UTMResult, LatLonResult, ErrorResponse, ManningNResult, EarthPressureResult, ChannelFlowResult, VegetationSlopeSuggestion, SoilErosionResult  # 導入自訂型別
 from fastapi import Query
@@ -187,32 +189,58 @@ def calc_catchment_runoff(
 @mcp.tool()
 def check_retaining_wall(
     height: float,
-    thickness: float,
+    thickness: float = None,
     unit_weight: float = None,
     friction_angle: float = None,
     cohesion: float = None,
     backfill_slope: float = 0,
     water_table: float = 0,
-    soil_type: str = None
+    soil_type: str = None,
+    seismic_coef: float = 0.15,
+    foundation_type: str = "土層",
+    top_width: float = None,
+    bottom_width: float = None,
+    wall_unit_weight: float = 24.0
 ) -> dict:
     """
-    護岸/擋土牆穩定檢核（滑動、傾倒、承載力，支援土壤參數查表）。
+    護岸/擋土牆穩定檢核（滑動、傾倒、承載力，支援土壤參數查表，含地震情況檢核）。
+    參數：
+      - height: 牆高(m)
+      - thickness: 牆底厚度(m)，矩形斷面用
+      - unit_weight: 回填土單位重(kN/m3)
+      - friction_angle: 回填土摩擦角(°)
+      - cohesion: 回填土凝聚力(kPa)
+      - backfill_slope: 回填坡度(°)
+      - water_table: 地下水位高(m)
+      - soil_type: 土壤類型（可選，若有則自動查表）
+      - seismic_coef: 水平地震係數（預設0.15，依據台灣地震區域）
+      - foundation_type: 基礎類型（"岩盤"或"土層"，預設"土層"）
+      - top_width: 牆頂寬度(m)，梯形斷面用
+      - bottom_width: 牆底寬度(m)，梯形斷面用
+      - wall_unit_weight: 牆體單位重(kN/m3)，預設24.0（混凝土）
     """
+    # 判斷是矩形還是梯形斷面
+    is_trapezoidal = (top_width is not None and bottom_width is not None)
+
     result = retaining_wall_stability_check(
         height,
-        thickness,
+        thickness=thickness,
         unit_weight=unit_weight,
         friction_angle=friction_angle,
         cohesion=cohesion,
         backfill_slope=backfill_slope,
         water_table=water_table,
-        soil_type=soil_type
+        soil_type=soil_type,
+        seismic_coef=seismic_coef,
+        foundation_type=foundation_type,
+        top_width=top_width,
+        bottom_width=bottom_width,
+        wall_unit_weight=wall_unit_weight
     )
-    msg = (
-        f"滑動SF={result['sf_slide']:.2f}，傾倒SF={result['sf_overturn']:.2f}，承載SF={result['sf_bearing']:.2f}，合格：{result['is_pass']}\n"
-        f"依據: {result['regulation']}\n說明: {result['explanation']}\n"
-        f"輸入參數: {result['input_params']}\n公式: {result['formula']}\n計算過程: {result['calculation_steps']}"
-    )
+
+    # 使用函數返回的完整訊息
+    msg = result['message'] + "\n\n" + f"依據: {result['regulation']}\n說明: {result['explanation']}\n計算過程: {result['calculation_steps']}"
+
     return {"success": True, "data": result, "message": msg}
 
 @mcp.tool()
@@ -772,6 +800,66 @@ def calculate_rebar_weight(rebar_number: str, length: float) -> dict:
         }
 
 @mcp.tool()
+def query_r_factor_tool(
+    region: str = None,
+    rainfall: float = None
+) -> dict:
+    """
+    查詢降雨沖蝕指數 R 值（依據水土保持技術規範第35條）。
+    參數：
+      - region: 地區名稱（如「台北市」、「新北市」等）
+      - rainfall: 年平均降雨量（mm）
+    回傳：dict，含 R 值、來源說明、單位等
+    """
+    result = query_r_factor(region, rainfall)
+    return result
+
+@mcp.tool()
+def query_k_factor_tool(
+    soil_type: str = None,
+    soil_factor: float = None
+) -> dict:
+    """
+    查詢土壤沖蝕指數 K 值（依據水土保持技術規範第35條）。
+    參數：
+      - soil_type: 土壤類型（如「黏土」、「砂土」等）
+      - soil_factor: 直接指定的 K 值
+    回傳：dict，含 K 值、來源說明、單位等
+    """
+    result = query_k_factor(soil_type, soil_factor)
+    return result
+
+@mcp.tool()
+def query_c_factor_tool(
+    land_use: str = None,
+    cover_factor: float = None
+) -> dict:
+    """
+    查詢覆蓋與管理因子 C 值（依據水土保持技術規範第35條）。
+    參數：
+      - land_use: 土地利用類型（如「裸地」、「草地」等）
+      - cover_factor: 直接指定的 C 值
+    回傳：dict，含 C 值、來源說明、單位等
+    """
+    result = query_c_factor(land_use, cover_factor)
+    return result
+
+@mcp.tool()
+def query_p_factor_tool(
+    practice: str = None,
+    practice_factor: float = None
+) -> dict:
+    """
+    查詢水土保持處理因子 P 值（依據水土保持技術規範第35條）。
+    參數：
+      - practice: 水土保持措施（如「無措施」、「等高耕作」等）
+      - practice_factor: 直接指定的 P 值
+    回傳：dict，含 P 值、來源說明、單位等
+    """
+    result = query_p_factor(practice, practice_factor)
+    return result
+
+@mcp.tool()
 def query_runoff_coeff(
     land_use: str = None,
     runoff_coeff: float = None,
@@ -797,17 +885,17 @@ def query_runoff_coeff(
             "data": None,
             "message": "請提供土地利用類型(land_use)或直接指定逕流係數(runoff_coeff)"
         }
-    
+
     # 查詢逕流係數
     C, C_src = get_runoff_coeff(land_use, runoff_coeff, is_developing)
-    
+
     if C is None:
         return {
             "success": False,
             "data": None,
             "message": f"錯誤：{C_src}"
         }
-    
+
     # 準備回傳資料
     result = {
         'runoff_coeff': C,
@@ -822,7 +910,7 @@ def query_runoff_coeff(
             'is_developing': is_developing
         }
     }
-    
+
     # 如果有指定土地利用類型，提供更多資訊
     if land_use in RUNOFF_COEFF_TABLE:
         if isinstance(RUNOFF_COEFF_TABLE[land_use], dict):
@@ -832,14 +920,14 @@ def query_runoff_coeff(
             result['value_range'] = f"{RUNOFF_COEFF_TABLE[land_use]['min']} - {RUNOFF_COEFF_TABLE[land_use]['max']}"
         else:
             result['value'] = RUNOFF_COEFF_TABLE[land_use]
-    
+
     msg = (
         f"逕流係數 C = {C:.2f}\n"
         f"來源：{C_src}\n"
         f"依據：{result['regulation']}\n"
         f"說明：{result['explanation']}"
     )
-    
+
     return {"success": True, "data": result, "message": msg}
 
 # 提供 ASGI 應用給 uvicorn 啟動 HTTP 服務
