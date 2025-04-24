@@ -566,6 +566,11 @@ def calc_channel_section_flow(
                 else:
                     y_high = y
                 y = (y_low + y_high) / 2
+            # --- 出水高規範檢核 ---
+            min_outlet_height = max(0.2, h * 0.25)
+            outlet_height_warning = ""
+            if y < min_outlet_height:
+                outlet_height_warning = f"【檢核警告】計算流深 y = {y:.3f} m 不符第86條規範，應≧max(0.2m, 設計水深25%)={min_outlet_height:.3f} m。請調整設計。"
             section_desc = f"矩形底寬 b={b*100:.1f}cm, 高度 h={h*100:.1f}cm"
             formula = "Q = A × V, V = (1/n) × R^(2/3) × S^(1/2)"
             calc_steps = f"A = b×y, P = b+2y, R = A/P, V = (1/n)R^(2/3)S^(1/2), Q = A×V"
@@ -606,6 +611,11 @@ def calc_channel_section_flow(
                 else:
                     y_high = y
                 y = (y_low + y_high) / 2
+            # --- 出水高規範檢核 ---
+            min_outlet_height = max(0.2, h * 0.25)
+            outlet_height_warning = ""
+            if y < min_outlet_height:
+                outlet_height_warning = f"【檢核警告】計算流深 y = {y:.3f} m 不符第86條規範，應≧max(0.2m, 設計水深25%)={min_outlet_height:.3f} m。請調整設計。"
             section_desc = f"梯形底寬 b1={b1*100:.1f}cm, 頂寬 b2={b2*100:.1f}cm, 高度 h={h*100:.1f}cm"
             formula = "Q = A × V, V = (1/n) × R^(2/3) × S^(1/2)"
             calc_steps = f"A = (b1+b2)×y/2, P = b2+2×√(y²+((b2-b1)/2)²), R = A/P, V = (1/n)R^(2/3)S^(1/2), Q = A×V"
@@ -650,9 +660,9 @@ def calc_channel_section_flow(
             f"{f'渠道材質：{material}' if material else ''}\n"
             f"\n【計算公式】\n{formula}\n【計算步驟】\n{calc_steps}\n"
             f"\n【計算結果】\n流速 V = {V:.3f} m/s\n流深 y = {y:.3f} m\n斷面積 A = {area:.4f} m²\n水力半徑 R = {R:.4f} m\n周長 P = {perimeter:.4f} m\n"
-            f"\n{check_msg}\n{full_flow_warning}"
+            f"\n{check_msg}\n{full_flow_warning}\n{outlet_height_warning}"
         )
-        msg = f"流速: {V:.3f} m/s，流深: {y:.3f} m。{check_msg}"
+        msg = f"流速: {V:.3f} m/s，流深: {y:.3f} m。{check_msg} {outlet_height_warning}"
         return {
             "success": True,
             "data": {
@@ -663,7 +673,8 @@ def calc_channel_section_flow(
                 "hydraulic_radius": R,
                 "section_desc": section_desc,
                 "check_msg": check_msg,
-                "full_flow_warning": full_flow_warning
+                "full_flow_warning": full_flow_warning,
+                "outlet_height_warning": outlet_height_warning
             },
             "message": msg,
             "report": report
