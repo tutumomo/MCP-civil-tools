@@ -537,16 +537,29 @@ def calc_channel_section_flow(
                 return {"success": False, "message": "請輸入底寬與高度 (cm)", "report": ""}
             b = rect_width / 100
             h = rect_height / 100
+            S = slope / 100
+            n = manning_n
+            # 參數有效性檢查
+            if b <= 0 or h <= 0 or n is None or n <= 0 or S <= 0:
+                return {"success": False, "message": f"參數錯誤：寬={b}m，高={h}m，坡度={S}，曼寧係數={n}，皆須大於0，請檢查輸入。", "report": ""}
             epsilon = 1e-6
+            # 計算滿流最大流量
+            area_full = b * h
+            perimeter_full = b + 2 * h
+            R_full = area_full / perimeter_full
+            V_full = (1 / n) * (R_full ** (2 / 3)) * (S ** 0.5)
+            Q_full = area_full * V_full
+            if Q > Q_full:
+                return {"success": False, "message": f"所需流量已超過滿流最大流量 {Q_full:.3f} cms，請加大尺寸或坡度。", "report": ""}
             y_low, y_high = 0.0001, h - epsilon
             y = (y_low + y_high) / 2
-            for _ in range(100):
+            for _ in range(200):
                 area = b * y
                 perimeter = b + 2 * y
                 R = area / perimeter
                 V = (1 / n) * (R ** (2 / 3)) * (S ** 0.5)
                 Q_cal = area * V
-                if abs(Q_cal - Q) < 1e-7:
+                if abs(Q_cal - Q) / Q < 1e-4:
                     break
                 if Q_cal < Q:
                     y_low = y
@@ -562,17 +575,31 @@ def calc_channel_section_flow(
             b1 = trap_bottom / 100
             b2 = trap_top / 100
             h = trap_height / 100
+            S = slope / 100
+            n = manning_n
+            # 參數有效性檢查
+            if b1 <= 0 or b2 <= 0 or h <= 0 or n is None or n <= 0 or S <= 0:
+                return {"success": False, "message": f"參數錯誤：底寬={b1}m，頂寬={b2}m，高={h}m，坡度={S}，曼寧係數={n}，皆須大於0，請檢查輸入。", "report": ""}
             epsilon = 1e-6
+            # 計算滿流最大流量
+            area_full = (b1 + b2) * h / 2
+            side_full = sqrt(h**2 + ((b2 - b1) / 2) ** 2)
+            perimeter_full = b2 + 2 * side_full
+            R_full = area_full / perimeter_full
+            V_full = (1 / n) * (R_full ** (2 / 3)) * (S ** 0.5)
+            Q_full = area_full * V_full
+            if Q > Q_full:
+                return {"success": False, "message": f"所需流量已超過滿流最大流量 {Q_full:.3f} cms，請加大尺寸或坡度。", "report": ""}
             y_low, y_high = 0.0001, h - epsilon
             y = (y_low + y_high) / 2
-            for _ in range(100):
+            for _ in range(200):
                 area = (b1 + b2) * y / 2
                 side = sqrt(y**2 + ((b2 - b1) / 2) ** 2)
                 perimeter = b2 + 2 * side
                 R = area / perimeter
                 V = (1 / n) * (R ** (2 / 3)) * (S ** 0.5)
                 Q_cal = area * V
-                if abs(Q_cal - Q) < 1e-7:
+                if abs(Q_cal - Q) / Q < 1e-4:
                     break
                 if Q_cal < Q:
                     y_low = y
@@ -587,30 +614,33 @@ def calc_channel_section_flow(
         # 流速限制檢核
         check_msg = ""
         min_safe = max_safe = None
+        min_v = None
         if material:
-            from util import get_max_velocity
+            from util import get_max_velocity, MIN_VELOCITY_CONCRETE
             v_range = get_max_velocity(material)
+            if material in ["混凝土", "鋼筋混凝土"]:
+                min_v = MIN_VELOCITY_CONCRETE
             if v_range:
                 min_safe, max_safe = v_range
-                if V < min_safe:
-                    check_msg = f"【檢核警告】計算流速 {V:.3f} m/s 低於安全下限 {min_safe:.2f} m/s，可能導致泥砂淤積。"
+                if min_v and V < min_v:
+                    check_msg = f"【檢核警告】計算流速 {V:.3f} m/s 低於『{material}』最小容許流速 {min_v:.2f} m/s，可能導致泥砂淤積。"
                 elif V > max_safe:
-                    check_msg = f"【檢核警告】計算流速 {V:.3f} m/s 超過安全上限 {max_safe:.2f} m/s，請考慮設置消能設施。"
+                    check_msg = f"【檢核警告】計算流速 {V:.3f} m/s 超過『{material}』最大容許流速 {max_safe:.2f} m/s，應於適當位置設置消能設施。"
                 else:
                     check_msg = "計算結果符合安全流速規範。"
             else:
                 check_msg = "無法取得該材質對應的流速限制。"
         # 滿流警告
         full_flow_warning = ""
-        rel_tol = 1e-3
+        rel_tol = 1e-4
         if cross_section_type == "圓形":
             if (D - y) / D < rel_tol:
                 full_flow_warning = "【檢核警告】計算流深已接近管徑，可能表示管道已滿流。"
         elif cross_section_type == "矩形":
-            if (h - y) / h < rel_tol:
+            if (h - y) / h < rel_tol and abs(Q - Q_full) / Q_full < rel_tol:
                 full_flow_warning = "【檢核警告】計算流深已接近通道設計高度，可能表示通道已滿流。"
         elif cross_section_type == "梯形":
-            if (h - y) / h < rel_tol:
+            if (h - y) / h < rel_tol and abs(Q - Q_full) / Q_full < rel_tol:
                 full_flow_warning = "【檢核警告】計算流深已接近通道設計高度，可能表示通道已滿流。"
         # 報告書
         report = (
