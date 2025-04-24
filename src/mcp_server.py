@@ -529,6 +529,12 @@ def calc_channel_section_flow(
                 else:
                     y_high = y
                 y = (y_low + y_high) / 2
+            # --- 涵管水深規範檢核(第87條) ---
+            pipe_depth_warning = ""
+            if y > 0.75 * D:
+                pipe_depth_warning = f"【檢核警告】涵管水深 y = {y:.3f} m 已超過內徑0.75倍({0.75*D:.3f} m)，不符第87條規範，請加大管徑或調整設計。"
+            else:
+                pipe_depth_warning = ""
             section_desc = f"圓形管徑 D={D*100:.1f}cm"
             formula = "Q = A × V, V = (1/n) × R^(2/3) × S^(1/2)"
             calc_steps = f"θ = 2×arccos(1-2y/D), A = (D²/8)(θ-sinθ), P = (D/2)θ, R = A/P, V = (1/n)R^(2/3)S^(1/2), Q = A×V"
@@ -570,7 +576,10 @@ def calc_channel_section_flow(
             min_outlet_height = max(0.2, h * 0.25)
             outlet_height_warning = ""
             if y < min_outlet_height:
-                outlet_height_warning = f"【檢核警告】計算流深 y = {y:.3f} m 不符第86條規範，應≧max(0.2m, 設計水深25%)={min_outlet_height:.3f} m。請調整設計。"
+                if min_outlet_height == 0.2 and y < 0.2:
+                    outlet_height_warning = f"【檢核警告】計算流深 y = {y:.3f} m 低於規範最小值20公分，請調整設計參數（如加大流量、縮小斷面、調整坡度等）。"
+                else:
+                    outlet_height_warning = f"【檢核警告】計算流深 y = {y:.3f} m 不符第86條規範，應≧max(0.2m, 設計水深25%)={min_outlet_height:.3f} m。請調整設計。"
             section_desc = f"矩形底寬 b={b*100:.1f}cm, 高度 h={h*100:.1f}cm"
             formula = "Q = A × V, V = (1/n) × R^(2/3) × S^(1/2)"
             calc_steps = f"A = b×y, P = b+2y, R = A/P, V = (1/n)R^(2/3)S^(1/2), Q = A×V"
@@ -615,7 +624,10 @@ def calc_channel_section_flow(
             min_outlet_height = max(0.2, h * 0.25)
             outlet_height_warning = ""
             if y < min_outlet_height:
-                outlet_height_warning = f"【檢核警告】計算流深 y = {y:.3f} m 不符第86條規範，應≧max(0.2m, 設計水深25%)={min_outlet_height:.3f} m。請調整設計。"
+                if min_outlet_height == 0.2 and y < 0.2:
+                    outlet_height_warning = f"【檢核警告】計算流深 y = {y:.3f} m 低於規範最小值20公分，請調整設計參數（如加大流量、縮小斷面、調整坡度等）。"
+                else:
+                    outlet_height_warning = f"【檢核警告】計算流深 y = {y:.3f} m 不符第86條規範，應≧max(0.2m, 設計水深25%)={min_outlet_height:.3f} m。請調整設計。"
             section_desc = f"梯形底寬 b1={b1*100:.1f}cm, 頂寬 b2={b2*100:.1f}cm, 高度 h={h*100:.1f}cm"
             formula = "Q = A × V, V = (1/n) × R^(2/3) × S^(1/2)"
             calc_steps = f"A = (b1+b2)×y/2, P = b2+2×√(y²+((b2-b1)/2)²), R = A/P, V = (1/n)R^(2/3)S^(1/2), Q = A×V"
@@ -652,6 +664,16 @@ def calc_channel_section_flow(
         elif cross_section_type == "梯形":
             if (h - y) / h < rel_tol and abs(Q - Q_full) / Q_full < rel_tol:
                 full_flow_warning = "【檢核警告】計算流深已接近通道設計高度，可能表示通道已滿流。"
+        # --- 出水高(Freeboard)檢核 ---
+        freeboard_warning = ""
+        freeboard = None
+        if cross_section_type in ["矩形", "梯形"]:
+            freeboard = h - y
+            min_freeboard = max(0.2, 0.25 * h)
+            if freeboard < min_freeboard:
+                freeboard_warning = f"【檢核警告】出水高(Freeboard)僅 {freeboard*100:.1f} cm，低於規範最小值 max(20cm, 設計水深25%) = {min_freeboard*100:.1f} cm，請加大溝深以增加安全餘裕。"
+            elif min_freeboard == 0.25 * h and freeboard < 0.25:
+                freeboard_warning = f"【提醒】出水高(Freeboard)為 {freeboard*100:.1f} cm，略低於常見建議值(25cm)，可視實際需求考慮加大溝深。"
         # 報告書
         report = (
             f"【排水斷面流速/流深/流量計算報告】\n"
@@ -660,9 +682,10 @@ def calc_channel_section_flow(
             f"{f'渠道材質：{material}' if material else ''}\n"
             f"\n【計算公式】\n{formula}\n【計算步驟】\n{calc_steps}\n"
             f"\n【計算結果】\n流速 V = {V:.3f} m/s\n流深 y = {y:.3f} m\n斷面積 A = {area:.4f} m²\n水力半徑 R = {R:.4f} m\n周長 P = {perimeter:.4f} m\n"
-            f"\n{check_msg}\n{full_flow_warning}\n{outlet_height_warning}"
+            f"設計溝深 H = {h:.3f} m\n出水高(Freeboard) = H - y = {h:.3f} m - {y:.3f} m = {freeboard:.3f} m ({freeboard*100:.1f} cm)\n"
+            f"\n{check_msg}\n{full_flow_warning}\n{outlet_height_warning}\n{freeboard_warning}"
         )
-        msg = f"流速: {V:.3f} m/s，流深: {y:.3f} m。{check_msg} {outlet_height_warning}"
+        msg = f"流速: {V:.3f} m/s，流深: {y:.3f} m。{check_msg} {outlet_height_warning} {freeboard_warning}"
         return {
             "success": True,
             "data": {
@@ -674,7 +697,9 @@ def calc_channel_section_flow(
                 "section_desc": section_desc,
                 "check_msg": check_msg,
                 "full_flow_warning": full_flow_warning,
-                "outlet_height_warning": outlet_height_warning
+                "outlet_height_warning": outlet_height_warning,
+                "freeboard_warning": freeboard_warning,
+                "freeboard": freeboard
             },
             "message": msg,
             "report": report
