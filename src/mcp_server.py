@@ -72,8 +72,8 @@ def get_manning_n(material: str) -> dict:
     desc, n, v_range = query_manning_n(material)
     if n is not None:
         msg = f"{desc} 的曼寧係數 n = {n}"
-        if v_range:
-            msg += f"，最大容許流速範圍：{v_range[0]}~{v_range[1]} m/s"
+        if v_range is not None:
+            msg += f"，最大容許流速：{v_range} m/s"
         return {"success": True, "data": {"material": desc, "n": n, "v_range": v_range}, "message": msg}
     else:
         supported = get_manning_materials_list()
@@ -635,23 +635,22 @@ def calc_channel_section_flow(
             return {"success": False, "message": "不支援的斷面型式，請選擇圓形、矩形或梯形。", "report": ""}
         # 流速限制檢核
         check_msg = ""
-        min_safe = max_safe = None
+        max_safe = None
         min_v = None
         if material:
             from util import get_max_velocity, MIN_VELOCITY_CONCRETE
-            v_range = get_max_velocity(material)
+            max_safe = get_max_velocity(material)
             if material in ["混凝土", "鋼筋混凝土"]:
                 min_v = MIN_VELOCITY_CONCRETE
-            if v_range:
-                min_safe, max_safe = v_range
+            if max_safe:
                 if min_v and V < min_v:
-                    check_msg = f"【檢核警告】計算流速 {V:.3f} m/s 低於『{material}』最小容許流速 {min_v:.2f} m/s，可能導致泥砂淤積。"
+                    check_msg = f"【檢核警告】計算流速 {V:.3f} m/s 低於『{material}』最小容許流速 0.8 m/s，可能導致泥砂淤積。"
                 elif V > max_safe:
                     check_msg = f"【檢核警告】計算流速 {V:.3f} m/s 超過『{material}』最大容許流速 {max_safe:.2f} m/s，應於適當位置設置消能設施。"
                 else:
-                    check_msg = "計算結果符合安全流速規範。"
+                    check_msg = f"計算結果符合『{material}』最大容許流速 {max_safe:.2f} m/s 規範。"
             else:
-                check_msg = "無法取得該材質對應的流速限制。"
+                check_msg = "無法取得該材質對應的最大容許流速。"
         # 滿流警告
         full_flow_warning = ""
         rel_tol = 1e-4

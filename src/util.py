@@ -1,6 +1,7 @@
 import pyproj
 import math
 import logging  # 新增 logging 套件
+import unicodedata
 
 # 設定 logging，讓錯誤訊息能正確輸出到伺服器日誌
 logging.basicConfig(level=logging.INFO)
@@ -88,6 +89,7 @@ MANNING_N_TABLE = {
     "礫岩、硬頁岩、軟岩、水成岩": 0.045,
     "硬岩": 0.050,
     "混凝土": 0.012,
+    "鋼筋混凝土": 0.012,
 }
 
 def get_manning_materials_list():
@@ -98,12 +100,19 @@ def get_manning_materials_list():
 
 # --- 最大容許流速表（僅取最大值）---
 MAX_VELOCITY_TABLE = {
-    "純細砂": 0.46,
-    "粗石及細砂土": 0.61,
-    "全面密草生": 2.5,
-    "混凝土": 6.1,
+    "純細砂": 0.30,
+    "不緻密之細砂": 0.46,
+    "粗砂及細砂": 0.61,
+    "平常砂土": 0.76,
+    "砂質壤土": 0.84,
+    "堅壤土及黏質壤土": 1.14,
+    "平常礫土": 1.52,
+    "全面密草生": 2.50,
+    "粗礫、石礫及砂礫": 1.83,
+    "礫岩、硬頁岩、軟岩、水成岩": 2.44,
+    "硬岩": 4.57,
+    "混凝土": 6.10,
     "鋼筋混凝土": 12.0,
-    # 其他材料依規範最大值補齊
 }
 # --- 最小容許流速（僅混凝土/鋼筋混凝土）---
 MIN_VELOCITY_CONCRETE = 0.8
@@ -114,23 +123,31 @@ def get_max_velocity_materials_list():
     """
     return list(MAX_VELOCITY_TABLE.keys())
 
+def normalize_material_name(material: str) -> str:
+    # 去除空白、全形轉半形、小寫
+    s = material.strip()
+    s = unicodedata.normalize('NFKC', s)
+    s = s.lower()
+    # 常見同義詞對應
+    if s in ["鋼筋混凝土", "rc", "reinforced concrete"]:
+        return "混凝土"
+    return s
+
 def query_manning_n(material: str):
-    """
-    回傳材料名稱、曼寧係數n、最大容許流速範圍。
-    """
-    n = MANNING_N_TABLE.get(material)
-    v_range = MAX_VELOCITY_TABLE.get(material)
-    if n is not None and v_range is not None:
-        return material, n, v_range
-    elif n is not None:
-        return material, n, None
-    else:
-        return None, None, None
+    norm = normalize_material_name(material)
+    # 以標準化名稱查表
+    for k in MANNING_N_TABLE:
+        if normalize_material_name(k) == norm:
+            n = MANNING_N_TABLE[k]
+            v_range = MAX_VELOCITY_TABLE.get(k)
+            if n is not None and v_range is not None:
+                return k, n, v_range
+            elif n is not None:
+                return k, n, None
+    return None, None, None
 
 def get_max_velocity(material: str):
-    if material in MAX_VELOCITY_TABLE:
-        return MAX_VELOCITY_TABLE[material]
-    return None
+    return MAX_VELOCITY_TABLE.get(material)
 
 # --- 土壓力係數計算 ---
 def active_earth_pressure_coefficient(phi_deg: float):
