@@ -96,23 +96,17 @@ def get_manning_materials_list():
     """
     return list(MANNING_N_TABLE.keys())
 
-# 最大容許流速表（依據附件 ALL.md 與規範）
-MIN_VELOCITY_CONCRETE = 0.8  # 混凝土/鋼筋混凝土最小容許流速
+# --- 最大容許流速表（僅取最大值）---
 MAX_VELOCITY_TABLE = {
-    "純細砂": (0.23, 0.30),
-    "不緻密之細砂": (0.30, 0.46),
-    "粗砂及細砂": (0.46, 0.61),
-    "平常砂土": (0.61, 0.76),
-    "砂質壤土": (0.76, 0.84),
-    "堅壤土及黏質壤土": (0.91, 1.14),
-    "平常礫土": (1.23, 1.52),
-    "全面密草生": (1.50, 2.50),
-    "粗礫、石礫及砂礫": (1.52, 1.83),
-    "礫岩、硬頁岩、軟岩、水成岩": (1.83, 2.44),
-    "硬岩": (3.05, 4.57),
-    "混凝土": (4.57, 6.10),
-    "鋼筋混凝土": (4.57, 12.0),
+    "純細砂": 0.46,
+    "粗石及細砂土": 0.61,
+    "全面密草生": 2.5,
+    "混凝土": 6.1,
+    "鋼筋混凝土": 12.0,
+    # 其他材料依規範最大值補齊
 }
+# --- 最小容許流速（僅混凝土/鋼筋混凝土）---
+MIN_VELOCITY_CONCRETE = 0.8
 
 def get_max_velocity_materials_list():
     """
@@ -134,10 +128,9 @@ def query_manning_n(material: str):
         return None, None, None
 
 def get_max_velocity(material: str):
-    """
-    查詢最大容許流速範圍。
-    """
-    return MAX_VELOCITY_TABLE.get(material)
+    if material in MAX_VELOCITY_TABLE:
+        return MAX_VELOCITY_TABLE[material]
+    return None
 
 # --- 土壓力係數計算 ---
 def active_earth_pressure_coefficient(phi_deg: float):
@@ -180,24 +173,18 @@ def passive_earth_pressure_coefficient(phi_deg: float):
 
 # --- 排水溝流速計算（曼寧公式，含流速檢核）---
 def channel_flow_velocity(n: float, r: float, s: float, material: str = None):
-    """
-    曼寧公式計算流速 v = (1/n) * R^(2/3) * S^(1/2)
-    若有指定材料名稱，則自動檢核最大/最小容許流速。
-    """
     import math
     v = (1/n) * (r ** (2/3)) * (s ** 0.5)
     warning = None
     if material:
-        v_range = get_max_velocity(material)
+        max_v = get_max_velocity(material)
         min_v = None
         if material in ["混凝土", "鋼筋混凝土"]:
             min_v = MIN_VELOCITY_CONCRETE
-        if v_range:
-            v_min, v_max = v_range
-            if min_v and v < min_v:
-                warning = f"警告：計算流速 v = {v:.4f} m/s 低於『{material}』最小容許流速 {min_v} m/s，可能導致泥砂淤積。"
-            elif v > v_max:
-                warning = f"警告：計算流速 v = {v:.4f} m/s 已超過『{material}』最大容許流速 {v_max} m/s，應於適當位置設置消能設施。"
+        if max_v and v > max_v:
+            warning = f"警告：計算流速 v = {v:.4f} m/s 已超過『{material}』最大容許流速 {max_v} m/s，應於適當位置設置消能設施。"
+        elif min_v and v < min_v:
+            warning = f"警告：計算流速 v = {v:.4f} m/s 低於『{material}』最小容許流速 {min_v} m/s，可能導致泥砂淤積。"
     formula = "v = (1/n) × R^(2/3) × S^(1/2)"
     calculation_steps = f"v = (1/{n:.3f}) × {r:.3f}^(2/3) × {s:.4f}^(1/2) = {v:.4f} m/s"
     regulation = "依據《水土保持技術規範》第19、85條及附件曼寧公式、最大容許流速表"
