@@ -1,0 +1,10 @@
+- **React 組件**:
+    - 使用 **Next.js App Router** 時，頁面組件應位於 `/src/app` 目錄下的相應路由文件夾中。
+    - 可重用的 React 組件應放置在 `/src/components` 目錄下，並按照功能或模塊進行組織（例如，`/src/components/ui`，`/src/components/features/vocabulary`）。
+- **樣式文件**:
+    - Tailwind CSS 的配置文件通常位於項目根目錄的 `tailwind.config.js`，或者在 `/src/styles/` 目錄下。請始終參考此文件以瞭解項目的 Tailwind CSS 配置。
+    - 任何全局的 CSS 文件（例如，用於 Tailwind CSS 指令 `@tailwind base`, `@tailwind components`, `@tailwind utilities`）通常位於 `/src/app/globals.css`。
+- **工具函數**: 實用（utility）函數應放置在 `/src/lib` 或 `/src/utils` 目錄下。
+- **類型定義**: TypeScript 的類型（types）和接口（interfaces）應定義在 `/src/types` 或 `@types` 目錄下。
+- **靜態資源**: 靜態資源（例如圖片、字體）應放置在 `/public` 目錄下。
+- **API 路由**: 使用 Next.js API 路由時，API 接口應位於 `/src/app/api` 目錄下，用於處理與 Ollama 的交互或其他後端邏輯。
