@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/tutumomo-mcp-civil-tools-badge.png)](https://mseep.ai/app/tutumomo-mcp-civil-tools)
+
 # MCP Civil Tools 伺服器
 
 本專案是一個基於 MCP 協議的 Python 伺服器，主要是將水土保持技術規範(2023.05.04)透過 MCP Server 的方式提供給支援 MCP 的 client 調用，實現以自然語言與大模型對話的方式來進行查詢及計算，提供如曼寧係數查詢、土壓力係數、排水溝流速、邊坡穩定、土壤侵蝕、逕流量、擋土牆檢核、植生建議、材料參數、坡面保護、滲水設施、IDF曲線等查詢及計算功能。另外還提供台灣地區經緯度與 UTM/TWD97 座標的轉換。適用於 LLM 工具、Claude Desktop 等 AI 應用整合。
