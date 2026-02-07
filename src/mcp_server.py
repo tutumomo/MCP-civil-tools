@@ -13,8 +13,12 @@ from util import (
     SLOPE_PROTECTION_TABLE, u_channel_rebar_calculation, get_rebar_info,
     get_all_rebar_numbers, calculate_rebar_weight, get_runoff_coeff, RUNOFF_COEFF_TABLE,
     # 新增四個 USLE 因子查詢函數
-    query_r_factor, query_k_factor, query_c_factor, query_p_factor
+    query_r_factor, query_k_factor, query_c_factor, query_p_factor,
+    # 新增
+    gabion_stability_check, infiltration_facility_design
 )
+from regulation_search import query_regulation
+from visualizer import generate_retaining_wall_excalidraw, wrap_in_obsidian_excalidraw
 from utm_types import UTMResult, LatLonResult, ErrorResponse, ManningNResult, EarthPressureResult, ChannelFlowResult, VegetationSlopeSuggestion, SoilErosionResult  # 導入自訂型別
 from fastapi import Query
 # 新增支援清單查詢函式
@@ -241,7 +245,26 @@ def check_retaining_wall(
     # 使用函數返回的完整訊息
     msg = result['message'] + "\n\n" + f"依據: {result['regulation']}\n說明: {result['explanation']}\n計算過程: {result['calculation_steps']}"
 
+    # 新增視覺化繪圖支援
+    try:
+        excalidraw_data = generate_retaining_wall_excalidraw(
+            height, top_width or thickness, bottom_width or thickness,
+            result['standing_case']['sliding_sf'], result['standing_case']['overturning_sf']
+        )
+        obsidian_content = wrap_in_obsidian_excalidraw(excalidraw_data)
+        result['visual_script'] = obsidian_content
+        msg += "\n\n【視覺化腳本已生成】您可以將下方 Excalidraw 內容貼上至 Obsidian 中查看圖形。"
+    except:
+        pass
+
     return {"success": True, "data": result, "message": msg}
+
+@mcp.tool()
+def search_civil_regulations(query: str) -> str:
+    """
+    智慧檢索《水土保持技術規範》。可以輸入條號（如「第18條」）或關鍵字。
+    """
+    return query_regulation(query)
 
 @mcp.tool()
 def suggest_vegetation_slope(slope: float, soil_type: str, climate: str) -> dict:
